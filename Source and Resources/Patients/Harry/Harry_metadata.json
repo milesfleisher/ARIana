@@ -1,0 +1,98 @@
+{
+  "case_name": "Harry_100314",
+  "parameters": {
+    "name": "Harry",
+    "teaser": "23 m/o boy with abdominal pain and vomiting for 40 hours",
+    "clinical_descrip": "23 m/o boy, with 40 hours of abdominal pain and vomiting. One hard stool 24 hours ago. Hemoccult positive in ED with stable vital signs, but inconsolable. ED physicians had very low suspicion for intussusception and requested ultrasound \"just to be complete\".",
+    "perf_data": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        120.0,
+        0.0
+      ],
+      [
+        140.0,
+        0.0
+      ],
+      [
+        150.0,
+        0.0
+      ],
+      [
+        160.0,
+        0.5
+      ],
+      [
+        170.0,
+        1.5
+      ],
+      [
+        180.0,
+        2.5
+      ]
+    ],
+    "ret_data": [
+      [
+        0,
+        1
+      ],
+      [
+        60,
+        8
+      ],
+      [
+        80,
+        6
+      ],
+      [
+        100,
+        3
+      ],
+      [
+        120,
+        1
+      ],
+      [
+        180,
+        0
+      ]
+    ],
+    "coeff": [
+      500,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      30,
+      30,
+      30,
+      30,
+      30,
+      30,
+      30,
+      30,
+      30,
+      30,
+      25,
+      25,
+      25,
+      25,
+      25,
+      25,
+      25,
+      20,
+      20,
+      20,
+      10
+    ],
+    "num_stages": 30
+  }
+}
