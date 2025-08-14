@@ -515,7 +515,7 @@ class PreOpImageScroller(ttk.Frame):
         # Initially hide nav if not needed
         self.update_navigation_visibility()
 
-    # ---------- Public API ----------
+
     def set_images(self, image_paths):
         self.image_paths = list(image_paths or [])
         self.current_index = 0
@@ -525,7 +525,7 @@ class PreOpImageScroller(ttk.Frame):
         else:
             self.image_label.config(image="", text="No Images Available", cursor="")
 
-    # ---------- Navigation ----------
+    #  Navigation 
     def prev_image(self):
         if self.image_paths and self.current_index > 0:
             self.current_index -= 1
@@ -536,7 +536,7 @@ class PreOpImageScroller(ttk.Frame):
             self.current_index += 1
             self.display_image()
 
-    # ---------- Helpers ----------
+    #  Helpers 
     def update_navigation_visibility(self):
         """Show/hide navigation controls based on number of images."""
         if len(self.image_paths) <= 1:
@@ -980,81 +980,95 @@ class ARIanaApp:
 
 
     def create_disclaimer_screen(self):
-        from tkinter import ttk
         import tkinter as tk
+        from tkinter import ttk
 
-        # Main container (fills whole frame)
-        self.disclaimer_frame.columnconfigure(0, weight=1)
-        self.disclaimer_frame.rowconfigure(0, weight=1)
-        self.disclaimer_frame.rowconfigure(1, weight=0)
+        #  Centered group: title + body (centered as a unit)
+        self._disc_center = ttk.Frame(self.disclaimer_frame)
+        self._disc_center.pack(expand=True)  # centers vertically as one block
 
-        # --- Top content frame ---
-        content_frame = ttk.Frame(self.disclaimer_frame)
-        content_frame.grid(row=0, column=0, sticky="nsew")
-        content_frame.columnconfigure(0, weight=1)
-
-        # Title
         self.disclaimer_title = ttk.Label(
-            content_frame,
-            text="\n\n\n\n\nARIana Intussusception Simulator",
-            font=("Arial", 99, "bold"),
-            anchor="center",
-            justify="center"
-        )
-        w = self.root.winfo_width()
-        h = self.root.winfo_height()
-
-        pad_x = int(w * 0.05)  # 5% of window width
-        pad_y = int(h * 0.025) # 2.5% of window height
-        self.disclaimer_title.pack(padx=pad_x, pady=pad_y)
-
-        # Disclaimer text
-        disclaimer_text = """This device is designed to help a trained pediatric radiologist teach a
-    trainee the basics of reducing an intussusception with an air enema. It is
-    intended to supplement rather than replace the experience of performing a
-    supervised intussusception reduction on an actual patient.
-
-    In other words, a trainee who has used this simulator a few times should
-    not consider himself competent to perform an intussusception reduction in
-    the absence of any further experience. There are nuances of the
-    intussusception reduction procedure that are not within the scope of this
-    device and which can only be gained through practical experience under the
-    watchful eye of a trained pediatric radiologist.
-
-    If you agree with the above disclaimer, click "I Agree" to use this
-    program."""
-        self.disclaimer_label = ttk.Label(
-            content_frame,
-            text=disclaimer_text,
-            font=("Arial", 99),
-            wraplength=800,
+            self._disc_center,
+            text="ARIana Intussusception Simulator",
+            font=("Arial", 32, "bold"),
             justify="center",
-            anchor="center"
+            anchor="center",
         )
-        self.disclaimer_label.pack(padx=60, pady=30)
+        self.disclaimer_title.pack(pady=(0, 2))  # tiny gap under title
 
-        # --- Bottom button bar ---
-        button_frame = ttk.Frame(self.disclaimer_frame)
-        button_frame.grid(row=1, column=0, sticky="ew", pady=20)
-        button_frame.columnconfigure((0, 1), weight=1)
+        disclaimer_text = (
+            "This device is designed to help a trained pediatric radiologist teach a\n"
+            "trainee the basics of reducing an intussusception with an air enema. It is\n"
+            "intended to supplement rather than replace the experience of performing a\n"
+            "supervised intussusception reduction on an actual patient.\n\n"
+            "In other words, a trainee who has used this simulator a few times should\n"
+            "not consider himself competent to perform an intussusception reduction in\n"
+            "the absence of any further experience. There are nuances of the\n"
+            "intussusception reduction procedure that are not within the scope of this\n"
+            "device and which can only be gained through practical experience under the\n"
+            "watchful eye of a trained pediatric radiologist.\n\n"
+            "If you agree with the above disclaimer, click \"I Agree\" to use this\n"
+            "program."
+        )
+        self.disclaimer_label = ttk.Label(
+            self._disc_center,
+            text=disclaimer_text,
+            font=("Arial", 21),
+            wraplength=900,
+            justify="center",
+            anchor="center",
+        )
+        # NOTE: no expand=True here -> prevents big vertical gap
+        self.disclaimer_label.pack(padx=24, pady=(0, 0), fill=tk.X)
 
-        ttk.Button(button_frame, text="I Agree", command=self.show_startup).grid(row=0, column=0, padx=10)
-        ttk.Button(button_frame, text="Decline", command=self.root.quit).grid(row=0, column=1, padx=10)
+        #  Buttons pinned to bottom 
+        self.disclaimer_button_frame = ttk.Frame(self.disclaimer_frame)
+        self.disclaimer_button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
+        ttk.Button(self.disclaimer_button_frame, text="I Agree", command=self.show_startup).pack(side=tk.LEFT, padx=10)
+        ttk.Button(self.disclaimer_button_frame, text="Decline", command=self.root.quit).pack(side=tk.LEFT, padx=10)
 
-        # --- Resize logic to scale text ---
-        def _resize_fonts(event=None):
-            w = self.root.winfo_width()
-            h = self.root.winfo_height()
+        # Bind resize (add='+' so we don't clobber other Configure handlers) and apply once
+        self.disclaimer_frame.bind("<Configure>", self._resize_disclaimer, add="+")
+        self._resize_disclaimer()  # initial sizing
 
-            # scale based on smaller of width/height
-            scale = min(w / 1200, h / 800)
-            title_size = max(14, int(21 * scale))
-            text_size = max(10, int(14 * scale))
 
-            self.disclaimer_title.config(font=("Arial", title_size, "bold"))
-            self.disclaimer_label.config(font=("Arial", text_size), wraplength=min(1400, int(w * 0.9)))
+    def _resize_disclaimer(self, event=None):
+        """Responsive sizing for disclaimer without introducing vertical gaps."""
+        # Current size
+        w = (event.width if event else self.disclaimer_frame.winfo_width()) or 900
+        h = (event.height if event else self.disclaimer_frame.winfo_height()) or 700
 
-        self.root.bind("<Configure>", _resize_fonts)
+        # Scale factor (lower denominator -> larger overall text)
+        a=1.2
+        scale = min(w / (1000.0*a), h / (650.0*a))  # was 1200,800 before
+
+        # Increased base sizes
+        BASE_TITLE, MIN_TITLE, MAX_TITLE = 34, 20, 54  # was 26 base
+        BASE_BODY,  MIN_BODY,  MAX_BODY  = 22, 14, 38  # was 16 base
+
+        title_size = max(MIN_TITLE, min(MAX_TITLE, int(BASE_TITLE * scale)))
+        body_size  = max(MIN_BODY,  min(MAX_BODY,  int(BASE_BODY  * scale)))
+
+        # Apply fonts
+        self.disclaimer_title.config(font=("Arial", title_size, "bold"))
+        self.disclaimer_label.config(font=("Arial", body_size))
+
+        # Increased wrap clamp so lines stay longer before wrapping
+        wrap = max(500, min(int(w * 0.95), 1800))  # was 420–1400
+        self.disclaimer_label.config(wraplength=wrap)
+
+        # Tiny fixed gap
+        self.disclaimer_title.pack_configure(pady=(0, 2))
+
+        # Scaled side padding
+        pad_x = max(20, int(w * 0.05))
+        self.disclaimer_label.pack_configure(padx=pad_x, pady=(0, 0), fill="x")
+
+        # Keep centered group & pinned buttons
+        self._disc_center.pack_configure(expand=True)
+        self.disclaimer_button_frame.pack_configure(side="bottom", fill="x", pady=10)
+
+
 
 
     def create_startup_screen(self):
@@ -1388,7 +1402,7 @@ class ARIanaApp:
 
     # In the ARIanaApp class...
 
-    def display_image(self, image_path): # <--- FIX IS HERE: Add 'image_path' back
+    def display_image(self, image_path): 
         if image_path and os.path.exists(image_path):
             try:
                 img = Image.open(image_path)
@@ -1472,7 +1486,7 @@ class ARIanaApp:
         smooth_pressure = gaussian_filter1d(pressure_interp(dense_time), sigma=2)
         smooth_stage = gaussian_filter1d(stage_interp(dense_time), sigma=1.5)
 
-        # --- First plot: smoothed ---
+        # First plot: smoothed
         fig, ax1 = plt.subplots(figsize=(8, 4))
         ax1.set_xlabel("Time (s)")
         ax1.set_ylabel("Pressure (mmHg)", color="red")
