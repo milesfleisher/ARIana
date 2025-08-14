@@ -12,11 +12,11 @@ jobs:
     secrets: inherit        # pass all repo/org secrets
 
   run-test:
-    uses: ./.github/workflows/test.yml
+    uses: ./.github/workflows/build-ubuntu-single-file.yml
     permissions: inherit
     secrets: inherit
 
   run-deploy:
-    uses: ./.github/workflows/deploy.yml
+    uses: ./.github/workflows/build-windows-single-file.yml
     permissions: inherit
     secrets: inherit
