@@ -555,11 +555,3 @@ If you encounter problems, consult the following troubleshooting tips:
 The clinical workflow language (e.g., Pre-Op Checklist, safety timers, fluoroscopy guidance) and several UI conventions are adapted from the original manual. All original credit belongs to the original authors.
 
 ---
-
-
-
-## License
-
-Choose a license (e.g., MIT / Apache-2.0 / BSD-3-Clause) and add it as `LICENSE` in the root of your repository. Update the header of this README with the chosen license if desired.
-
-
