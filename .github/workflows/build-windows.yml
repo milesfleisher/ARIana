@@ -44,17 +44,29 @@ jobs:
           }
           Write-Host "All required imports available."
 
-      - name: Build with Nuitka (console forced for debug)
+      - name: Build with Nuitka
         shell: pwsh
         env:
           NUITKA_ASSUME_YES_FOR_DOWNLOADS: "1"
         run: |
+          # Define paths once (space-safe) and reuse them
+          $SRC      = "Source Code"
+          $ENTRY    = Join-Path $SRC "ARIana.py"
+          $PATIENTS = Join-Path $SRC "Patients"
+          $PNG      = Join-Path $SRC "ARIana_logo.png"
+          $ICO      = Join-Path $SRC "ARIana_logo.ico"
+
+          # Sanity checks (will print helpful hints but not fail the build)
+          if (!(Test-Path $ENTRY))    { Write-Host "WARN: Entry not found: $ENTRY" }
+          if (!(Test-Path $PATIENTS)) { Write-Host "WARN: Patients folder not found: $PATIENTS" }
+          if (!(Test-Path $PNG))      { Write-Host "WARN: PNG not found: $PNG" }
+          if (!(Test-Path $ICO))      { Write-Host "INFO: ICO not found (EXE will use default icon): $ICO" }
+      
           $flags = @(
             '--standalone',
             '--windows-console-mode=force',
-            '--include-data-dir="Source\Code/Patients"=Patients',
-            '--include-data-file="Source\Code/ARIana_logo.png"=ARIana_logo.png',
-            '--windows-icon-from-ico="Source\Code/ARIana_logo.ico"',
+            "--include-data-dir=$PATIENTS=Patients",
+            "--include-data-file=$PNG=ARIana_logo.png",
             '--include-module=tkinter',
             '--include-module=PIL',
             '--include-module=matplotlib',
@@ -69,15 +81,20 @@ jobs:
             '--nofollow-import-to=setuptools',
             '--output-dir=build_windows'
           )
-          if (Test-Path "Source Code/ARIana_logo.ico") {
-            $flags += "--windows-icon-from-ico=Source Code/ARIana_logo.ico"
+      
+          # Only add icon flags if the .ico actually exists
+          if (Test-Path $ICO) {
+            $flags += "--windows-icon-from-ico=$ICO"
+            # Optional: also bundle the .ico so Tkinter can use it at runtime
+            $flags += "--include-data-file=$ICO=ARIana_logo.ico"
           }
-          Write-Host "Running: python -m nuitka $($flags -join ' ') 'Source Code/ARIana.py'"
-          python -m nuitka $flags "Source Code/ARIana.py"
-
-      - name: Upload build artifact (.dist only)
-        uses: actions/upload-artifact@v4
-        with:
-          name: ARIana-Windows-standalone
-          path: build_windows/ARIana.dist/**
-          if-no-files-found: error
+      
+          Write-Host "Running: python -m nuitka $($flags -join ' ') '$ENTRY'"
+          python -m nuitka $flags $ENTRY
+      
+            - name: Upload build artifact (.dist only)
+              uses: actions/upload-artifact@v4
+              with:
+                name: ARIana-Windows-standalone
+                path: build_windows/ARIana.dist/**
+                if-no-files-found: error
