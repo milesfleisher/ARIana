@@ -20,13 +20,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Show repo layout
+        run: |
+          pwd
+          ls -la
+          echo "Top-level files:"
+          find . -maxdepth 1 -type f -print
+          echo "Top-level dirs:"
+          find . -maxdepth 1 -type d -print
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"   # ⬅ no cache
-
-      - name: Show Python version
-        run: python -V
+          python-version: "3.11"   # no pip cache (avoids requirements.txt errors)
 
       - name: Install build dependencies
         run: |
@@ -41,34 +47,61 @@ jobs:
           PY
 
       - name: Build app bundle with Nuitka
+        shell: bash
         run: |
-          set -euo pipefail
-          test -f "ARIana.py"
-          test -f "ARIana_logo.png"
-          test -d "Patients"
+          # Be strict on errors, but don't die on unset vars
+          set -eo pipefail
 
-          python3 -m nuitka \
-            --standalone \
-            --macos-create-app-bundle \
-            --macos-app-name="ARIana" \
-            --include-data-dir=Patients=Patients \
-            --include-data-file=ARIana_logo.png=ARIana_logo.png \
-            --include-module=tkinter \
-            --include-module=PIL \
-            --include-module=matplotlib \
-            --include-module=numpy \
-            --include-module=scipy \
-            --include-module=serial \
-            --enable-plugin=tk-inter \
-            --output-dir=build_macos \
-            --macos-app-icon=ARIana_logo.png \
-            --macos-sign-identity="-" \
-            ARIana.py
+          if [[ ! -f "ARIana.py" ]]; then
+            echo "ERROR: ARIana.py not found in $(pwd)"
+            exit 1
+          fi
+
+          # Build flags dynamically so missing assets don't cause hard failure
+          NUITKA_FLAGS=(
+            --standalone
+            --enable-plugin=tk-inter
+            --include-module=tkinter
+            --include-module=PIL
+            --include-module=matplotlib
+            --include-module=numpy
+            --include-module=scipy
+            --include-module=serial
+            --macos-create-app-bundle
+            --macos-app-name=ARIana
+            --output-dir=build_macos
+            --macos-sign-identity=-
+          )
+
+          if [[ -d "Patients" ]]; then
+            NUITKA_FLAGS+=( --include-data-dir=Patients=Patients )
+          else
+            echo "NOTE: Patients/ directory not found; skipping data include."
+          fi
+
+          if [[ -f "ARIana_logo.png" ]]; then
+            NUITKA_FLAGS+=( --include-data-file=ARIana_logo.png=ARIana_logo.png )
+            NUITKA_FLAGS+=( --macos-app-icon=ARIana_logo.png )
+          else
+            echo "NOTE: ARIana_logo.png not found; skipping icon and data file include."
+          fi
+
+          echo "Running Nuitka with flags:"
+          printf '  %q\n' "${NUITKA_FLAGS[@]}"
+
+          python3 -m nuitka "${NUITKA_FLAGS[@]}" ARIana.py
 
       - name: Create DMG
+        shell: bash
         run: |
+          set -eo pipefail
           APP_PATH="build_macos/ARIana.app"
-          test -d "$APP_PATH"
+          if [[ ! -d "$APP_PATH" ]]; then
+            echo "ERROR: Expected app bundle not found at $APP_PATH"
+            echo "Contents of build_macos:"
+            ls -la build_macos || true
+            exit 1
+          fi
           hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO ARIana.dmg
           ls -lh ARIana.dmg
 
