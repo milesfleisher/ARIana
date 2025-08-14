@@ -515,7 +515,6 @@ class PreOpImageScroller(ttk.Frame):
         # Initially hide nav if not needed
         self.update_navigation_visibility()
 
-
     def set_images(self, image_paths):
         self.image_paths = list(image_paths or [])
         self.current_index = 0
@@ -592,7 +591,6 @@ class PreOpImageScroller(ttk.Frame):
                 self.image_label.config(image="", text=f"Image not found:\n{os.path.basename(path)}", cursor="")
         else:
             self.image_label.config(image="", text="No Image Available", cursor="")
-
 
 class ImageScroller(ttk.Frame):
     """A frame with a label to show an image and buttons to scroll through a list of images."""
@@ -705,7 +703,6 @@ class ImageScroller(ttk.Frame):
         else:
             self.image_label.config(image="", text="No Image Available")
 
-
 class ZoomableImageViewer(tk.Toplevel):
     def __init__(self, master, image_path=None):
         super().__init__(master)
@@ -758,7 +755,6 @@ class ZoomableImageViewer(tk.Toplevel):
                 fill="white"
             )
 
-
     def on_mousewheel(self, event):
         factor = 1.1 if event.delta > 0 or getattr(event, 'num', 0) == 4 else 0.9
         self.scale *= factor
@@ -798,8 +794,7 @@ class ZoomableImageViewer(tk.Toplevel):
             self.canvas.yview_moveto(0.0)
 
 class ARIanaApp:
-    """Main application class using Tkinter GUI"""
-    
+    """Main application class using Tkinter GUI"""   
     def __init__(self):
         self.root = tk.Tk()
         self.root.bind("<Configure>", self.on_window_resize)
@@ -812,14 +807,12 @@ class ARIanaApp:
 
         self.called_surgery_from_preop = False
 
-
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
         app_w = int(screen_w * 0.95)
         app_h = int(screen_h * 0.95)
         self.root.geometry(f"{app_w}x{app_h}")
 
-        
         self.case_loader = CaseLoader()
         self.all_cases_data = []
         self.simulator = IntussusceptionSimulator()
@@ -846,7 +839,7 @@ class ARIanaApp:
 
     def create_widgets(self):
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True,          padx=10, pady=10)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         self.disclaimer_frame = ttk.Frame(self.notebook)
         self.startup_frame = ttk.Frame(self.notebook)
@@ -978,7 +971,6 @@ class ARIanaApp:
         wrapped_text = textwrap.fill(clinical_desc, width=80)
         messagebox.showinfo("Vitals and Medical History", wrapped_text)
 
-
     def create_disclaimer_screen(self):
         import tkinter as tk
         from tkinter import ttk
@@ -1068,9 +1060,6 @@ class ARIanaApp:
         self._disc_center.pack_configure(expand=True)
         self.disclaimer_button_frame.pack_configure(side="bottom", fill="x", pady=10)
 
-
-
-
     def create_startup_screen(self):
         main_frame = ttk.Frame(self.startup_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -1108,8 +1097,6 @@ class ARIanaApp:
         scrollbar.config(command=self.case_list_tree.yview)
         
         self.case_list_tree.bind("<<TreeviewSelect>>", self.on_case_select_display)
-
-        # Removed preview_frame and its contents
 
     def on_case_select_display(self, event=None):
         selected_items = self.case_list_tree.selection()
@@ -1158,7 +1145,6 @@ class ARIanaApp:
             result = self.simulator.process_pressure_reading(pressure)
             self.update_simulation_status(result)
             self.root.after(50, sample_loop)  # Adjust interval as needed (ms)
-
         self.root.after(50, sample_loop)
 
     def create_simulation_screen(self):
@@ -1193,9 +1179,7 @@ class ARIanaApp:
         # Manometer Status and Pressure Display
 
         self.manometer_status_label = ttk.Label(self.pressure_input_frame, text="Disconnected", foreground="red")
-
         self.manometer_status_label.pack(fill="x", expand=True)
-
         self.toggle_pressure_input()
 
         ttk.Button(controls_frame, text="Take Fluoroscopy Image", command=self.take_fluoro_image).pack(pady=5, fill="x")
@@ -1284,7 +1268,6 @@ class ARIanaApp:
         ttk.Button(bottom_button_frame, text="Back to Case Selection", command=self.show_startup).pack(side=tk.LEFT, padx=20, ipadx=10, ipady=5)
         ttk.Button(bottom_button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=20, ipadx=10, ipady=5)
 
-
     def toggle_pressure_input(self):
         """Shows/hides the virtual slider or the serial status label."""
         if self.virtual_slider_var.get():
@@ -1303,7 +1286,6 @@ class ARIanaApp:
         self.update_simulation_status(result)
 
     def call_for_surgery(self):
-
         # Was the button pressed before starting the simulation?
         try:
             pressed_in_preop = (self.simulator.sim_time == 0 and self.simulator.current_stage == 1)
@@ -1314,7 +1296,6 @@ class ARIanaApp:
 
         messagebox.showinfo("Surgery Called", "The patient has been sent to surgery.")
         self.end_simulation(outcome_override="Patient Sent to Surgery")
-
 
     def toggle_visibility(self, name):
         """Hides or shows a status label row by changing its text and color."""
@@ -1400,8 +1381,6 @@ class ARIanaApp:
         except KeyError as e:
             print(f"Malformed result received in update_simulation_status: missing {e}")
 
-    # In the ARIanaApp class...
-
     def display_image(self, image_path): 
         if image_path and os.path.exists(image_path):
             try:
@@ -1428,9 +1407,7 @@ class ARIanaApp:
         else:
             # This handles the case where there's no image to display
             self.image_label.config(image="", text="No Image Available")
-
-
-    
+ 
     def on_window_resize(self, event):
         # Redraw current images
         if hasattr(self, 'display_current_image'):
@@ -1453,7 +1430,6 @@ class ARIanaApp:
         photo = ImageTk.PhotoImage(img)
         plt.close(fig)
         return photo
-
 
     def plot_performance_data(self, data):
         self.result_plot_images = []
@@ -1550,10 +1526,10 @@ class ARIanaApp:
 
     def end_simulation(self, outcome_override=None):
         """Stop the simulator and render the Results tab based on how the run ended."""
-        # 1) Stop the engine
+        # Stop the engine
         self.simulator.stop_simulation()
 
-        # 2) Collect data once
+        # ollect data once
         performance_data = self.simulator.get_performance_data()
         if not performance_data:
             # Nothing to show; still navigate to Results with a minimal summary
@@ -1566,7 +1542,7 @@ class ARIanaApp:
             self.called_surgery_from_preop = False
             return
 
-        # 3) Decide if we should suppress plotting (Pre-Op surgery or explicit contraindication start)
+        # Decide if we should suppress plotting (Pre-Op surgery or explicit contraindication start)
         is_contra_case = (
             self.current_case and
             self.current_case.get("parameters", {}).get("contraindication_start", 0) == 1
@@ -1595,7 +1571,7 @@ class ARIanaApp:
             self.called_surgery_from_preop = False
             return
 
-        # 4) Normal path (plot should be shown)
+        # Normal path (plot should be shown)
         self.called_surgery_from_preop = False  # ensure it doesn’t leak into next run
 
         # Summary
@@ -1617,10 +1593,8 @@ class ARIanaApp:
             self.plot_image_label.config(image="", text="No performance data available to plot.")
             self.plot_image_label.image = None
 
-        # 5) Navigate to Results
+        # Navigate to Results
         self.show_results()
-
-
 
     def show_results(self):
         self.notebook.select(self.results_frame)
