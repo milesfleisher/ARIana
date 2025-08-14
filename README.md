@@ -549,7 +549,7 @@ If you encounter problems, consult the following troubleshooting tips:
 ## Attribution & Provenance
 
 -   **Original MATLAB manual:** `ARI manual 201409.pdf` (2014).
--   **Original authors:** S.K.Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexier, M.S. Fleisher
+-   **Original authors:** S.K.Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexier, M.S. Fleisher, Lucy LLC
 -   **This release:** A Python/Tk re-implementation building upon the 2014 MATLAB ARI/ARIana simulator and manual.
 
 The clinical workflow language (e.g., Pre-Op Checklist, safety timers, fluoroscopy guidance) and several UI conventions are adapted from the original manual. All original credit belongs to the original authors.
