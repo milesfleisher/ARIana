@@ -799,7 +799,8 @@ class ARIanaApp:
         self.root = tk.Tk()
         self.root.bind("<Configure>", self.on_window_resize)
         self.root.title("ARIana Intussusception Simulator")
-        
+        self.root.iconphoto(False, tk.PhotoImage(file="ARIana_logo.png"))
+
         self.result_plot_images = []
         self.result_plot_index = 0
 
