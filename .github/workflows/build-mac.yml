@@ -23,15 +23,12 @@ jobs:
       - name: Show repo layout (debug)
         run: |
           pwd
-          ls -la
-          echo "---- files ----"
           git ls-files | sed 's/^/  /'
-          echo "--------------"
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"   # no pip cache (avoids requirements.txt requirement)
+          python-version: "3.11"   # no pip cache
 
       - name: Install build dependencies
         run: |
@@ -45,36 +42,36 @@ jobs:
           set -eo pipefail
 
           # Find ARIana.py anywhere in the repo
-          APP_MAIN="$(git ls-files | grep -E '(^|.*/)(ARIana\.py)$' | head -n1 || true)"
-          if [[ -z "$APP_MAIN" ]]; then
+          APP_MAIN_REL="$(git ls-files | grep -E '(^|.*/)(ARIana\.py)$' | head -n1 || true)"
+          if [[ -z "$APP_MAIN_REL" ]]; then
             echo "ERROR: Could not find ARIana.py anywhere in repo."
             exit 1
           fi
-          APP_DIR="$(dirname "$APP_MAIN")"
-          [[ "$APP_DIR" == "." ]] && APP_DIR="$GITHUB_WORKSPACE"
+          APP_MAIN_ABS="$(python -c 'import os,sys;print(os.path.abspath(sys.argv[1]))' "$APP_MAIN_REL")"
+          APP_DIR_ABS="$(python -c 'import os,sys;print(os.path.dirname(os.path.abspath(sys.argv[1])))' "$APP_MAIN_REL")"
 
-          echo "Found ARIana.py at: $APP_MAIN"
-          echo "Using APP_DIR: $APP_DIR"
-
-          # Detect Patients dir (prefer sibling of ARIana.py, else repo root)
-          if [[ -d "$APP_DIR/Patients" ]]; then
-            DATA_DIR="$APP_DIR/Patients"
+          # Prefer Patients next to script; else repo root; else empty
+          if [[ -d "$APP_DIR_ABS/Patients" ]]; then
+            DATA_DIR_ABS="$APP_DIR_ABS/Patients"
           elif [[ -d "$GITHUB_WORKSPACE/Patients" ]]; then
-            DATA_DIR="$GITHUB_WORKSPACE/Patients"
+            DATA_DIR_ABS="$GITHUB_WORKSPACE/Patients"
           else
-            DATA_DIR=""
+            DATA_DIR_ABS=""
           fi
-          echo "DATA_DIR=$DATA_DIR" >> $GITHUB_OUTPUT
 
-          # Detect app icon (prefer sibling, else repo root)
-          if [[ -f "$APP_DIR/ARIana_logo.png" ]]; then
-            ICON_PATH="$APP_DIR/ARIana_logo.png"
+          # Prefer icon next to script; else repo root; else empty
+          if [[ -f "$APP_DIR_ABS/ARIana_logo.png" ]]; then
+            ICON_ABS="$APP_DIR_ABS/ARIana_logo.png"
           elif [[ -f "$GITHUB_WORKSPACE/ARIana_logo.png" ]]; then
-            ICON_PATH="$GITHUB_WORKSPACE/ARIana_logo.png"
+            ICON_ABS="$GITHUB_WORKSPACE/ARIana_logo.png"
           else
-            ICON_PATH=""
+            ICON_ABS=""
           fi
-          echo "ICON_PATH=$ICON_PATH" >> $GITHUB_OUTPUT
+
+          echo "APP_MAIN_ABS=$APP_MAIN_ABS" >> $GITHUB_OUTPUT
+          echo "APP_DIR_ABS=$APP_DIR_ABS"   >> $GITHUB_OUTPUT
+          echo "DATA_DIR_ABS=$DATA_DIR_ABS" >> $GITHUB_OUTPUT
+          echo "ICON_ABS=$ICON_ABS"         >> $GITHUB_OUTPUT
 
           # Verify tkinter
           python - << 'PY'
@@ -82,21 +79,16 @@ jobs:
           print("tkinter OK")
           PY
 
-          # Expose for later steps
-          echo "APP_MAIN=$APP_MAIN" >> $GITHUB_OUTPUT
-          echo "APP_DIR=$APP_DIR" >> $GITHUB_OUTPUT
-
       - name: Build app bundle with Nuitka
         shell: bash
         run: |
           set -eo pipefail
-          APP_MAIN="${{ steps.locate.outputs.APP_MAIN }}"
-          APP_DIR="${{ steps.locate.outputs.APP_DIR }}"
-          DATA_DIR="${{ steps.locate.outputs.DATA_DIR }}"
-          ICON_PATH="${{ steps.locate.outputs.ICON_PATH }}"
 
-          echo "Building from: $APP_DIR"
-          cd "$APP_DIR"
+          APP_MAIN_ABS="${{ steps.locate.outputs.APP_MAIN_ABS }}"
+          DATA_DIR_ABS="${{ steps.locate.outputs.DATA_DIR_ABS }}"
+          ICON_ABS="${{ steps.locate.outputs.ICON_ABS }}"
+
+          OUT_DIR="$GITHUB_WORKSPACE/build_macos"
 
           NUITKA_FLAGS=(
             --standalone
@@ -109,20 +101,19 @@ jobs:
             --include-module=serial
             --macos-create-app-bundle
             --macos-app-name=ARIana
-            --output-dir=build_macos
             --macos-sign-identity=-
+            "--output-dir=$OUT_DIR"
           )
 
-          if [[ -n "$DATA_DIR" ]]; then
-            # Map real path -> "Patients" inside the bundle
-            NUITKA_FLAGS+=( "--include-data-dir=${DATA_DIR}=Patients" )
+          if [[ -n "$DATA_DIR_ABS" ]]; then
+            NUITKA_FLAGS+=( "--include-data-dir=$DATA_DIR_ABS=Patients" )
           else
             echo "NOTE: Patients/ not found; skipping include."
           fi
 
-          if [[ -n "$ICON_PATH" ]]; then
-            NUITKA_FLAGS+=( "--include-data-file=${ICON_PATH}=ARIana_logo.png" )
-            NUITKA_FLAGS+=( "--macos-app-icon=${ICON_PATH}" )
+          if [[ -n "$ICON_ABS" ]]; then
+            NUITKA_FLAGS+=( "--include-data-file=$ICON_ABS=ARIana_logo.png" )
+            NUITKA_FLAGS+=( "--macos-app-icon=$ICON_ABS" )
           else
             echo "NOTE: ARIana_logo.png not found; skipping icon."
           fi
@@ -130,26 +121,25 @@ jobs:
           echo "Nuitka flags:"
           printf '  %q\n' "${NUITKA_FLAGS[@]}"
 
-          python3 -m nuitka "${NUITKA_FLAGS[@]}" "$(basename "$APP_MAIN")"
+          python3 -m nuitka "${NUITKA_FLAGS[@]}" "$APP_MAIN_ABS"
 
       - name: Create DMG
         shell: bash
         run: |
           set -eo pipefail
-          APP_DIR="${{ steps.locate.outputs.APP_DIR }}"
-          cd "$APP_DIR"
-          APP_PATH="build_macos/ARIana.app"
+          OUT_DIR="$GITHUB_WORKSPACE/build_macos"
+          APP_PATH="$OUT_DIR/ARIana.app"
           if [[ ! -d "$APP_PATH" ]]; then
-            echo "ERROR: Expected app bundle not found at: $APP_DIR/$APP_PATH"
-            ls -la build_macos || true
+            echo "ERROR: Expected app bundle not found at: $APP_PATH"
+            ls -la "$OUT_DIR" || true
             exit 1
           fi
-          hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO ARIana.dmg
-          ls -lh ARIana.dmg
+          hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO "$GITHUB_WORKSPACE/ARIana.dmg"
+          ls -lh "$GITHUB_WORKSPACE/ARIana.dmg"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: ARIana-macOS-DMG
-          path: ${{ steps.locate.outputs.APP_DIR }}/ARIana.dmg
+          path: ARIana.dmg
           if-no-files-found: error
