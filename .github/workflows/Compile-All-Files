@@ -1,0 +1,22 @@
+name: Compile All Files
+
+on:
+  workflow_dispatch:       # manual “Run workflow” button
+  # push:
+  #   branches: [ main ]   # (optional) run on push to main too
+
+jobs:
+  run-build:
+    uses: ./.github/workflows/macos-build.yml
+    permissions: inherit    # pass the caller's permissions
+    secrets: inherit        # pass all repo/org secrets
+
+  run-test:
+    uses: ./.github/workflows/test.yml
+    permissions: inherit
+    secrets: inherit
+
+  run-deploy:
+    uses: ./.github/workflows/deploy.yml
+    permissions: inherit
+    secrets: inherit
