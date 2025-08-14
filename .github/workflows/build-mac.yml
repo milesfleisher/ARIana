@@ -2,6 +2,8 @@ name: Build Mac App (Nuitka)
 
 on:
   workflow_dispatch:
+  workflow_call: {}   # <- makes this workflow reusable
+
 
 jobs:
   build-macos:
