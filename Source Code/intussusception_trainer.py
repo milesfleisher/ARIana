@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk, messagebox
 import json
 import os
@@ -14,6 +15,7 @@ import textwrap
 from scipy.ndimage import gaussian_filter1d
 from scipy.interpolate import interp1d
 from matplotlib.figure import Figure 
+
 
 
 import matplotlib
@@ -802,8 +804,7 @@ class ARIanaApp:
     def __init__(self):
         self.root = tk.Tk()
 
-        # --- ALL INSTANCE ATTRIBUTES ARE DEFINED FIRST ---
-        # This prevents all startup crashes (AttributeError).
+        # ALL INSTANCE ATTRIBUTES ARE DEFINED FIRST
 
         # App State & Data
         self.result_plot_images = []
@@ -837,8 +838,7 @@ class ARIanaApp:
         self.manometer_queue = queue.Queue()
         self.manometer_thread = ManometerThread(self.manometer_queue)
         self.manometer_pressure = 0
-
-        # --- CONFIGURE THE ROOT WINDOW ---
+        
         # The icon is set once and stored to prevent garbage collection.
         self.app_icon = tk.PhotoImage(file="ARIana_logo.png")
         self.root.iconphoto(False, self.app_icon)
@@ -852,14 +852,17 @@ class ARIanaApp:
         app_w = int(screen_w * 0.95)
         app_h = int(screen_h * 0.95)
         self.root.geometry(f"{app_w}x{app_h}")
+        self.root.minsize(720, 640)   # min screen dimensions
 
-        # --- START BACKGROUND PROCESSES ---
+        # START BACKGROUND PROCESSES 
         self.manometer_thread.start()
 
-        # --- CREATE UI (Now that all attributes are ready) ---
+        # CREATE UI (Now that all attributes are ready)
         self.create_widgets()
+        self._raw_descs = {}
 
-        # --- SET INITIAL APP STATE ---
+
+        # SET INITIAL APP STATE
         self.show_disclaimer()
         self.check_manometer_queue()
 
@@ -921,25 +924,52 @@ class ARIanaApp:
         main_frame = ttk.Frame(self.pre_operation_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Left panel for buttons + checklist (checklist BELOW the buttons)
-        left_panel = ttk.Frame(main_frame)
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=False, padx=(0, 10))
+        # LEFT panel: make it narrower and fixed-width
+        left_panel = ttk.Frame(main_frame, width=320)  # was flexible; now a compact fixed width
+        left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
+        left_panel.pack_propagate(False)  # keep the fixed width
 
         ttk.Button(left_panel, text="Start Intussusception",
-                   command=self.start_simulation_from_pre_op).pack(pady=10, fill="x")
+                command=self.start_simulation_from_pre_op).pack(pady=8, fill="x")
         ttk.Button(left_panel, text="Call for Surgery",
-                   command=self.call_for_surgery).pack(pady=10, fill="x")
+                command=self.call_for_surgery).pack(pady=8, fill="x")
         ttk.Button(left_panel, text="Check Vitals and Medical History",
-                   command=self.show_clinical_history_pre_op).pack(pady=10, fill="x")
+                command=self.show_clinical_history_pre_op).pack(pady=8, fill="x")
 
         ttk.Separator(left_panel, orient="horizontal").pack(fill="x", pady=(8, 6))
 
         ttk.Label(left_panel, text="Pre-Procedure Checklist",
-                  font=("Arial", 12, "bold")).pack(anchor="w", pady=(0, 4))
+                font=("Arial", 12, "bold")).pack(anchor="w", pady=(0, 4))
 
-        # Legible checklist under buttons
-        self.preop_checklist_text = tk.Text(left_panel, width=44, height=18, wrap="word")
-        self.preop_checklist_text.configure(font=("Arial", 18))
+        # ---- Scrollable checklist ----
+        checklist_frame = ttk.Frame(left_panel)
+        checklist_frame.pack(fill="both", expand=True)
+
+        checklist_frame.grid_rowconfigure(0, weight=1)
+        checklist_frame.grid_columnconfigure(0, weight=0)
+
+        # Text widget (read-only after insert)
+        self.preop_checklist_text = tk.Text(
+            checklist_frame,
+            wrap="word",
+            width=28,          # a little narrower than before
+            height=18
+        )
+        self.preop_checklist_text.configure(font=("Arial", 16))
+
+        # Vertical scrollbar
+        checklist_scrollbar = ttk.Scrollbar(checklist_frame, orient="vertical", command=self.preop_checklist_text.yview)
+        self.preop_checklist_text.configure(yscrollcommand=checklist_scrollbar.set)
+
+        # Layout with grid so the text expands and scrollbar stays on the right
+        # Scrollbar on the left
+        checklist_scrollbar.grid(row=0, column=0, sticky="ns")
+        self.preop_checklist_text.grid(row=0, column=1, sticky="nsew")
+
+        # And update column weights so the text expands, not the scrollbar
+        checklist_frame.grid_columnconfigure(1, weight=1)
+
+
         checklist = (
             "1. Pediatric surgery has been consulted and is aware of the patient.\n"
             "2. Abdominal radiographs (AP and Cross-table lateral or decubitus) demonstrate no free air.\n"
@@ -954,10 +984,9 @@ class ARIanaApp:
             "11. Will you sedate the patient?\n"
         )
         self.preop_checklist_text.insert("1.0", checklist)
-        self.preop_checklist_text.configure(state="disabled")
-        self.preop_checklist_text.pack(fill="both", expand=True)
+        self.preop_checklist_text.configure(state="disabled")  # keep it read-only
 
-        # Right panel for images (full height)
+        # RIGHT panel: images (expands to take remaining space)
         right_panel = ttk.Frame(main_frame)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
@@ -965,9 +994,10 @@ class ARIanaApp:
         self.pre_op_image_scroller = PreOpImageScroller(right_panel)
         self.pre_op_image_scroller.pack(fill="both", expand=True)
 
+
     def on_closing(self):
         """Handle window close event and ensure proper cleanup"""
-        print("Shutting down manometer connection...")
+        #print("Shutting down manometer connection...")
         self.manometer_thread.stop()
         # Give the thread a moment to clean up
         if self.manometer_thread.is_alive():
@@ -1009,7 +1039,7 @@ class ARIanaApp:
         self.disclaimer_title = ttk.Label(
             self._disc_center,
             text="ARIana Intussusception Simulator",
-            font=("Arial", 32, "bold"),
+            font=("Arial", 21, "bold"),
             justify="center",
             anchor="center",
         )
@@ -1032,7 +1062,7 @@ class ARIanaApp:
         self.disclaimer_label = ttk.Label(
             self._disc_center,
             text=disclaimer_text,
-            font=("Arial", 21),
+            font=("Arial", 16),
             wraplength=900,
             justify="center",
             anchor="center",
@@ -1091,19 +1121,23 @@ class ARIanaApp:
         main_frame = ttk.Frame(self.startup_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+        # LEFT: case list + buttons
         selection_frame = ttk.Frame(main_frame)
         selection_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
         title_frame = ttk.Frame(selection_frame)
-        title_frame.pack(fill="x", pady=(0,10))
+        title_frame.pack(fill="x", pady=(0, 10))
+
         ttk.Label(title_frame, text="Select a Patient Case", font=("Arial", 16, "bold")).pack(side=tk.LEFT)
         ttk.Button(title_frame, text="\u21BB", command=self.load_cases_into_tree).pack(side=tk.RIGHT)
-        
+
+        # Buttons under the tree
         button_frame = ttk.Frame(selection_frame)
         button_frame.pack(side=tk.BOTTOM, pady=(10, 0), fill="x")
-        
         ttk.Button(button_frame, text="Select Case", command=self.start_selected_case).pack(side=tk.LEFT, padx=10)
-        ttk.Button(button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=10)        
+        ttk.Button(button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=10)
+
+        # Treeview container
         tree_frame = ttk.Frame(selection_frame)
         tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -1113,17 +1147,30 @@ class ARIanaApp:
         style = ttk.Style()
         style.configure("Treeview", rowheight=60)
 
-        self.case_list_tree = ttk.Treeview(tree_frame, columns=("Name", "Description"), show="headings", style="Treeview", yscrollcommand=scrollbar.set)
+        self.case_list_tree = ttk.Treeview(
+            tree_frame,
+            columns=("Name", "Description"),
+            show="headings",
+            style="Treeview",
+            yscrollcommand=scrollbar.set,
+        )
         self.case_list_tree.heading("Name", text="Patient Name")
         self.case_list_tree.heading("Description", text="Description")
-        self.case_list_tree.column("Name", width=150, stretch=tk.NO)
-        self.case_list_tree.column("Description", width=400)
-        
+
+        # Make both columns stretch; Name gets ~28% on resize, Description the rest (set in _resize_tree_columns)
+        self.case_list_tree.column("Name", anchor="w", width=260, minwidth=200, stretch=True)
+        self.case_list_tree.column("Description", anchor="w", width=800, minwidth=400, stretch=True)
+
         self.case_list_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
         scrollbar.config(command=self.case_list_tree.yview)
-        
+
+        # Update preview + any other selection effects
         self.case_list_tree.bind("<<TreeviewSelect>>", self.on_case_select_display)
+
+        # Dynamically resize columns to window width
+        tree_frame.bind("<Configure>", self._resize_tree_columns)
+
+        # Also refresh preview text when selection changes
 
     def on_case_select_display(self, event=None):
         selected_items = self.case_list_tree.selection()
@@ -1137,12 +1184,107 @@ class ARIanaApp:
     def load_cases_into_tree(self):
         for i in self.case_list_tree.get_children():
             self.case_list_tree.delete(i)
-        
+
+        self._raw_descs.clear()
         self.all_cases_data = self.case_loader.load_case_list()
-        
+
         for case in self.all_cases_data:
-            wrapped_desc = textwrap.fill(case["description"], width=50)
-            self.case_list_tree.insert("", tk.END, iid=case["id"], values=(case["name"], wrapped_desc))
+            desc = case["description"] or ""
+            # Add newline padding so there's a gap between cases
+            #desc = desc.rstrip() + "\n\n\n\n\n\n\n\n\n\n\n\n"
+            self._raw_descs[case["id"]] = desc
+            self.case_list_tree.insert("", tk.END, iid=case["id"], values=(case["name"], desc))
+
+        # initial wrap based on current column width
+        self._rewrap_descriptions()
+
+
+    def _wrap_by_pixels(self, text, width_px, font):
+        words = text.split()
+        lines, line = [], ""
+        cur_w = 0
+        space_w = font.measure(" ")
+        i = 0
+        while i < len(words):
+            w = words[i]
+            ww = font.measure(w)
+            if not line:
+                # handle overlong word
+                if ww <= width_px:
+                    line, cur_w = w, ww
+                else:
+                    # greedy hard-break of a single too-long word
+                    cut = max(1, int(len(w) * width_px / max(1, ww)))
+                    part, rest = w[:cut], w[cut:]
+                    line, cur_w = part, font.measure(part)
+                    if rest:
+                        words.insert(i + 1, rest)
+            else:
+                if cur_w + space_w + ww <= width_px:
+                    line += " " + w
+                    cur_w += space_w + ww
+                else:
+                    lines.append(line)
+                    line, cur_w = "", 0
+                    continue  # reprocess same word on new line
+            i += 1
+        if line:
+            lines.append(line)
+        return lines
+
+    def _rewrap_descriptions(self):
+        tree = self.case_list_tree
+        if not tree.get_children():
+            return
+
+        # current Description column pixel width
+        desc_w = int(tree.column("Description")["width"])
+        if desc_w < 40:
+            return
+        target_px = max(60, desc_w - 16)  # padding inside cell
+
+        # use the Treeview’s font (fallback to TkDefaultFont)
+        style_name = tree.cget("style") or "Treeview"
+        style = ttk.Style()
+        font_name = style.lookup(style_name, "font") or "TkDefaultFont"
+        try:
+            fnt = tkfont.nametofont(font_name)
+        except Exception:
+            fnt = tkfont.nametofont("TkDefaultFont")
+
+        line_space = fnt.metrics("linespace")
+        max_lines = 1
+
+        # wrap and update items
+        for iid in tree.get_children(""):
+            raw = self._raw_descs.get(iid, "")
+            wrapped = self._wrap_by_pixels(raw, target_px, fnt)
+            max_lines = max(max_lines, len(wrapped))
+            name = tree.item(iid, "values")[0]
+            tree.item(iid, values=(name, "\n".join(wrapped)))
+
+        # set a global rowheight big enough to show the longest item
+        pad_y = 21  # a little breathing room
+        new_row_h = max(24, max_lines * line_space + pad_y)
+        ttk.Style().configure("Treeview", rowheight=new_row_h)
+
+    
+    def _resize_tree_columns(self, event=None):
+        # Compute available width inside the Treeview (minus scrollbar/padding)
+        tree = self.case_list_tree
+        tree.update_idletasks()
+        total = tree.winfo_width()
+        scrollbar_w = 18  # typical on most themes
+        side_pad = 24     # little breathing room
+        avail = max(300, total - scrollbar_w - side_pad)
+
+        # Allocate proportions: ~28% for Name, rest for Description
+        name_w = max(220, int(avail * 0.28))
+        desc_w = max(400, avail - name_w)
+
+        tree.column("Name", width=name_w)
+        tree.column("Description", width=desc_w)
+        self._rewrap_descriptions()
 
     def start_selected_case(self):
         selected_items = self.case_list_tree.selection()
@@ -1355,7 +1497,7 @@ class ARIanaApp:
             return "break"
         elif result["result"] == "radiation_overdose":
             messagebox.showerror("Radiation Overdose", "Radiation limit exceeded! Simulation ended.")
-            self.end_simulation()
+            self.end_simulation(outcome_override="Radiation limit exceeded!")
         else:
             self.display_image(result["image_path"])
         self.root.focus_set()
@@ -1377,8 +1519,11 @@ class ARIanaApp:
             if not self.warning_shown:
                 self.warning_label.config(
                     text="WARNING: The patient has been under pressure for 3 minutes. "
-                        "This is the maximum recommended amount of time. It is advised to complete or end the surgery promptly."
+                        "This is the maximum recommended amount of time. "
+                        "It is advised to complete or end the surgery promptly.",
+                    font=ttk.Style().lookup("TLabel", "font")
                 )
+
                 self.warning_label.pack(pady=(5, 10), fill="x")
                 self.warning_shown = True
             return  # Skip rest of method for warnings

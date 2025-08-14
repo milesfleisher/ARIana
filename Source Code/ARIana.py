@@ -13,6 +13,7 @@ import serial
 import threading
 import queue
 
+
 # This script is primarily for launching the main application
 # when packaged. Dependency checks and installations are removed
 # as they should be handled during the packaging process.
@@ -27,7 +28,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    print("Starting application...")
+    #print("Starting application...")
     
     # Import and run the application directly
     # When packaged by Nuitka, intussusception_trainer will be part of the executable
