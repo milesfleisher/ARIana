@@ -484,25 +484,34 @@ class PreOpImageScroller(ttk.Frame):
         self.current_index = 0
         self.photo_image = None
 
-        # Image display at the top
-        self.image_label = ttk.Label(self, text="No Images Available", anchor="center")
-        self.image_label.pack(pady=5, fill="both", expand=True)
+        # Configure the grid: Row 0 (image) should expand, Row 1 (nav) should not.
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        # Navigation frame at the bottom
+        # Image display at the top (Row 0)
+        self.image_label = ttk.Label(self, text="No Images Available", anchor="center")
+        self.image_label.grid(row=0, column=0, sticky="nsew", pady=5)
+
+        # Navigation frame at the bottom (Row 1)
         self.nav_frame = ttk.Frame(self)
-        self.nav_frame.pack(pady=5)
+        # The 'sticky="ew"' ensures it spans the width but doesn't expand vertically.
+        self.nav_frame.grid(row=1, column=0, sticky="ew", pady=5)
+
+        # Center the navigation buttons within the nav_frame
+        self.nav_frame.grid_columnconfigure(0, weight=1) # Left spacer
+        self.nav_frame.grid_columnconfigure(4, weight=1) # Right spacer
 
         # Previous button
         self.prev_button = ttk.Button(self.nav_frame, text="◀", command=self.prev_image, width=3)
-        self.prev_button.pack(side="left", padx=2)
+        self.prev_button.grid(row=0, column=1, padx=2)
 
         # Counter label in the center
         self.counter_label = ttk.Label(self.nav_frame, text="0/0", anchor="center", width=8)
-        self.counter_label.pack(side="left", padx=5)
+        self.counter_label.grid(row=0, column=2, padx=5)
 
         # Next button
         self.next_button = ttk.Button(self.nav_frame, text="▶", command=self.next_image, width=3)
-        self.next_button.pack(side="right", padx=2)
+        self.next_button.grid(row=0, column=3, padx=2)
 
         # Initially hide navigation controls
         self.update_navigation_visibility()
@@ -519,9 +528,9 @@ class PreOpImageScroller(ttk.Frame):
     def update_navigation_visibility(self):
         """Show/hide navigation controls based on number of images"""
         if len(self.image_paths) <= 1:
-            self.nav_frame.pack_forget()
+            self.nav_frame.grid_remove()
         else:
-            self.nav_frame.pack(pady=5)
+            self.nav_frame.grid()
         self.update_counter()
 
     def update_counter(self):
@@ -550,16 +559,19 @@ class PreOpImageScroller(ttk.Frame):
 
         path = self.image_paths[self.current_index]
         self.update_counter()
-        
+
         if os.path.exists(path):
             try:
                 img = Image.open(path)
-                panel_w = self.image_label.winfo_width()
-                panel_h = self.image_label.winfo_height()
-                if panel_w > 1 and panel_h > 1:
-                    img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
-                else:
-                    img.thumbnail((600, 450), Image.Resampling.LANCZOS)
+                container = self.image_label # Use the label itself as the container
+                container.update_idletasks()
+                panel_w = container.winfo_width()
+                panel_h = container.winfo_height()
+
+                if panel_w < 10 or panel_h < 10:
+                    panel_w, panel_h = 800, 600
+
+                img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
 
                 self.photo_image = ImageTk.PhotoImage(img)
                 self.image_label.config(image=self.photo_image, text="")
@@ -577,25 +589,31 @@ class ImageScroller(ttk.Frame):
         self.current_index = 0
         self.photo_image = None
 
-        # Navigation frame at the top
+        self.grid_rowconfigure(1, weight=1) # Row 1 (image) expands
+        self.grid_columnconfigure(0, weight=1)
+
+        # Navigation frame at the top (Row 0)
         self.nav_frame = ttk.Frame(self)
-        self.nav_frame.pack(pady=5, fill="x")
+        self.nav_frame.grid(row=0, column=0, sticky="ew", pady=5)
+
+        # Center the navigation buttons
+        self.nav_frame.grid_columnconfigure(1, weight=1)
 
         # Previous button
         self.prev_button = ttk.Button(self.nav_frame, text="◀", command=self.prev_image, width=3)
-        self.prev_button.pack(side="left", padx=5)
+        self.prev_button.grid(row=0, column=0, padx=5)
 
         # Counter label in the center
         self.counter_label = ttk.Label(self.nav_frame, text="0/0", anchor="center")
-        self.counter_label.pack(side="left", expand=True, fill="x")
+        self.counter_label.grid(row=0, column=1, sticky="ew")
 
         # Next button
         self.next_button = ttk.Button(self.nav_frame, text="▶", command=self.next_image, width=3)
-        self.next_button.pack(side="right", padx=5)
+        self.next_button.grid(row=0, column=2, padx=5)
 
-        # Image display
+        # Image display (Row 1)
         self.image_label = ttk.Label(self, text="No Images Available", anchor="center")
-        self.image_label.pack(pady=5, fill="both", expand=True)
+        self.image_label.grid(row=1, column=0, sticky="nsew", pady=5)
         self.image_label.bind("<Button-1>", self.open_zoom_viewer)
 
         # Initially hide navigation controls
@@ -609,6 +627,7 @@ class ImageScroller(ttk.Frame):
             self.display_image()
         else:
             self.image_label.config(image="", text="No Images Available")
+
     def open_zoom_viewer(self, event=None):
         if self.image_paths:
             img_path = self.image_paths[self.current_index]
@@ -618,9 +637,9 @@ class ImageScroller(ttk.Frame):
     def update_navigation_visibility(self):
         """Show/hide navigation controls based on number of images"""
         if len(self.image_paths) <= 1:
-            self.nav_frame.pack_forget()
+            self.nav_frame.grid_remove()
         else:
-            self.nav_frame.pack(pady=5, fill="x", before=self.image_label)
+            self.nav_frame.grid()
         self.update_counter()
 
     def update_counter(self):
@@ -641,6 +660,7 @@ class ImageScroller(ttk.Frame):
         if self.image_paths and self.current_index < len(self.image_paths) - 1:
             self.current_index += 1
             self.display_image()
+
     def display_image(self):
         if not self.image_paths:
             self.image_label.config(image="", text="No Images Available")
@@ -652,14 +672,15 @@ class ImageScroller(ttk.Frame):
         if os.path.exists(path):
             try:
                 img = Image.open(path)
+                # Use the label for sizing, as its container (the grid cell) is now properly managed.
+                container = self.image_label
+                container.update_idletasks()
+                
+                panel_w = container.winfo_width()
+                panel_h = container.winfo_height()
 
-                # Dynamically get size of image_label to scale the image properly
-                self.image_label.update_idletasks()
-                panel_w = self.image_label.winfo_width()
-                panel_h = self.image_label.winfo_height()
-
-                if panel_w < 10 or panel_h < 10:
-                    panel_w, panel_h = 800, 600  # fallback dimensions
+                if panel_w < 50 or panel_h < 50:
+                    panel_w, panel_h = 800, 600 
 
                 img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
 
@@ -670,6 +691,7 @@ class ImageScroller(ttk.Frame):
                 self.image_label.config(image="", text=f"Image not found:\n{os.path.basename(path)}")
         else:
             self.image_label.config(image="", text="No Image Available")
+
 
 class ZoomableImageViewer(tk.Toplevel):
     def __init__(self, master, image_path=None):
@@ -712,7 +734,7 @@ class ZoomableImageViewer(tk.Toplevel):
             scale_w = canvas_w / self.img.width
             scale_h = canvas_h / self.img.height
             self.scale = min(scale_w, scale_h, 1.0)
-            self.update_image(initial=True)
+            self.update_image() 
         else:
             # Show placeholder text if no image yet
             self.canvas.delete("all")
@@ -722,6 +744,7 @@ class ZoomableImageViewer(tk.Toplevel):
                 text="No image yet.\nTake a fluoroscopic image to display.",
                 fill="white"
             )
+
 
     def on_mousewheel(self, event):
         factor = 1.1 if event.delta > 0 or getattr(event, 'num', 0) == 4 else 0.9
@@ -773,6 +796,9 @@ class ARIanaApp:
         self.result_plot_index = 0
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        self.called_surgery_from_preop = False
+
 
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
@@ -927,7 +953,7 @@ class ARIanaApp:
         dontstart = self.current_case.get("parameters", {}).get("dontstart", 0)
         if dontstart == 1:
             messagebox.showinfo("Contraindication", "There was a contraindication. Intussusception is not recommended. The patient should be sent into surgery")
-            self.end_simulation(outcome_override="Contraindication was not recognized")
+            self.end_simulation(outcome_override="Contraindication Was Not Recognized")
             return # Prevent simulation from starting
         self.show_simulation()
     
@@ -1145,19 +1171,20 @@ program."""
         self.results_summary = ttk.Label(main_frame, text="", font=("Arial", 12), justify="center", anchor="center")
         self.results_summary.grid(row=0, column=0, pady=10, sticky="ew")
 
-        self.results_summary.grid(row=0, column=0, pady=10, sticky="ew")
-
         # Row 1: Content Frame
         content_frame = ttk.Frame(main_frame)
         content_frame.grid(row=1, column=0, sticky="nsew")
-        content_frame.grid_columnconfigure(0, weight=1)
-        content_frame.grid_columnconfigure(1, weight=1)
+        
+        content_frame.grid_columnconfigure(0, weight=1) # Plot column
+        content_frame.grid_columnconfigure(1, weight=1) # Image column
+        content_frame.grid_rowconfigure(0, weight=1)    # Ensure the row can expand vertically
 
         # Left content: Plot
         self.plot_canvas_frame = ttk.Frame(content_frame)
         self.plot_canvas_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         self.plot_image_label = ttk.Label(self.plot_canvas_frame)
         self.plot_image_label.pack(fill="both", expand=True)
+        self.plot_image_label.configure(anchor="center", justify="center", wraplength=600)
 
         # Right content: Image scroller
         image_frame = ttk.Frame(content_frame)
@@ -1173,6 +1200,7 @@ program."""
 
         ttk.Button(bottom_button_frame, text="Back to Case Selection", command=self.show_startup).pack(side=tk.LEFT, padx=20, ipadx=10, ipady=5)
         ttk.Button(bottom_button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=20, ipadx=10, ipady=5)
+
 
     def toggle_pressure_input(self):
         """Shows/hides the virtual slider or the serial status label."""
@@ -1192,8 +1220,18 @@ program."""
         self.update_simulation_status(result)
 
     def call_for_surgery(self):
+
+        # Was the button pressed before starting the simulation?
+        try:
+            pressed_in_preop = (self.simulator.sim_time == 0 and self.simulator.current_stage == 1)
+        except Exception:
+            pressed_in_preop = True  # safest default if simulator isn't initialized yet
+
+        self.called_surgery_from_preop = pressed_in_preop
+
         messagebox.showinfo("Surgery Called", "The patient has been sent to surgery.")
-        self.end_simulation()
+        self.end_simulation(outcome_override="Patient Sent to Surgery")
+
 
     def toggle_visibility(self, name):
         """Hides or shows a status label row by changing its text and color."""
@@ -1279,24 +1317,36 @@ program."""
         except KeyError as e:
             print(f"Malformed result received in update_simulation_status: missing {e}")
 
-    def display_image(self, image_path):
+    # In the ARIanaApp class...
+
+    def display_image(self, image_path): # <--- FIX IS HERE: Add 'image_path' back
         if image_path and os.path.exists(image_path):
             try:
                 img = Image.open(image_path)
-                panel_w = self.image_label.winfo_width()
-                panel_h = self.image_label.winfo_height()
+                
+                # Use the main image_label for sizing
+                container = self.image_label
+                container.update_idletasks()
+                panel_w = container.winfo_width()
+                panel_h = container.winfo_height()
+
                 if panel_w > 1 and panel_h > 1:
                     img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
                 else:
+                    # Fallback for when the window is not yet rendered
                     img.thumbnail((600, 450), Image.Resampling.LANCZOS)
 
+                # Keep a reference to the PhotoImage to prevent garbage collection
                 self.photo_image = ImageTk.PhotoImage(img)
                 self.image_label.config(image=self.photo_image, text="")
             except Exception as e:
                 print(f"Error displaying image {image_path}: {e}")
                 self.image_label.config(image="", text=f"Image not found:\n{os.path.basename(image_path)}")
         else:
+            # This handles the case where there's no image to display
             self.image_label.config(image="", text="No Image Available")
+
+
     
     def on_window_resize(self, event):
         # Redraw current images
@@ -1327,12 +1377,9 @@ program."""
         stages = np.array(data["stage_history"])
         showplot = True
         if len(times) < 2:
-            if self.current_case.get("parameters", {}).get("dontstart", 0) != 1:
-                print("Not enough data points to generate plot.")
-                return
-            else:
-                showplot=False
-                return
+            print("Not enough data points to generate plot.")        
+            showplot=False
+            return
 
         # Remove duplicates
         unique_times, unique_indices = np.unique(times, return_index=True)
@@ -1411,45 +1458,78 @@ program."""
         self.root.focus_set()
 
     def end_simulation(self, outcome_override=None):
+        """Stop the simulator and render the Results tab based on how the run ended."""
+        # 1) Stop the engine
         self.simulator.stop_simulation()
-        performance_data = self.simulator.get_performance_data()
-        if not performance_data: return
 
-            # If this case is a contraindication, show images but do not plot
-        if self.current_case and self.current_case.get("parameters", {}).get("dontstart", 0) == 1:
-            # Clear any stale plot image/text so an old graph doesn't linger
+        # 2) Collect data once
+        performance_data = self.simulator.get_performance_data()
+        if not performance_data:
+            # Nothing to show; still navigate to Results with a minimal summary
+            self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_override or self.simulator.last_outcome}")
+            self.plot_image_label.config(image="", text="No performance data for this case.")
+            self.plot_image_label.image = None
+            post_images = self.current_case.get("images", {}).get("postprocedure", [])
+            self.results_image_scroller.set_images(post_images)
+            self.show_results()
+            self.called_surgery_from_preop = False
+            return
+
+        # 3) Decide if we should suppress plotting (Pre-Op surgery or explicit contraindication start)
+        is_contra_case = (
+            self.current_case and
+            self.current_case.get("parameters", {}).get("contraindication_start", 0) == 1
+        )
+        called_surgery_in_preop = (
+            outcome_override == "Patient Sent to Surgery"
+            and getattr(self, "called_surgery_from_preop", False)
+        )
+
+        if is_contra_case or called_surgery_in_preop:
+            # No plot; centered message
             if hasattr(self, "plot_image_label"):
                 self.plot_image_label.config(image="", text="No performance data for this case.")
-                self.plot_image_label.image = None
+                self.plot_image_label.image = None  # clear any stale image
 
-            # Summary text for this outcome (use your preferred message)
-            summary_text = "Simulation ended.\nOutcome: Contraindication was not recognized"
+            # Summary + post images
+            summary_text = "Simulation ended.\n"
+            summary_text += f"Outcome: {outcome_override or 'Contraindication was not recognized'}"
             self.results_summary.config(text=summary_text)
 
-            # Show post-procedure images as usual
             post_images = self.current_case.get("images", {}).get("postprocedure", [])
             self.results_image_scroller.set_images(post_images)
 
-            # Navigate to Results and return early (no plotting scheduled)
             self.show_results()
+            # Reset the flag for future runs
+            self.called_surgery_from_preop = False
             return
 
-        # Update results summary and images immediately
-        if outcome_override:
-            outcome_message = outcome_override
-        else:
-            outcome_message = "Intussusception successfully reduced!" if performance_data["successful"] else "Perforation occurred or simulation ended early."
-        summary_text = f"Simulation ended.\nOutcome: {outcome_message}\nTotal Simulation Time: {performance_data['sim_time']:.1f}s\nTotal Fluoroscopy Time: {performance_data['fluoro_time']}s"
+        # 4) Normal path (plot should be shown)
+        self.called_surgery_from_preop = False  # ensure it doesn’t leak into next run
+
+        # Summary
+        summary_text = "Simulation ended.\n"
+        summary_text += f"Outcome: {outcome_override or self.simulator.last_outcome}"
         self.results_summary.config(text=summary_text)
 
+        # Post-procedure images
         post_images = self.current_case.get("images", {}).get("postprocedure", [])
         self.results_image_scroller.set_images(post_images)
 
+        # Plot performance (fallback text if plotting can’t produce an image)
+        self.plot_image_label.config(image="", text="")   # clear any prior text
+        self.result_plot_images = []                      # reset plot cache
+        self.plot_performance_data(performance_data)      # populates self.result_plot_images (or not)
+
+        if not self.result_plot_images:
+            # Not enough points or some guard tripped inside plotter
+            self.plot_image_label.config(image="", text="No performance data available to plot.")
+            self.plot_image_label.image = None
+
+        # 5) Navigate to Results
         self.show_results()
 
-        # Schedule plot generation on the main thread after a short delay
-        # This ensures the results screen is fully displayed before plotting begins
-        self.root.after(300, self.plot_performance_data, performance_data)
+
 
     def show_results(self):
         self.notebook.select(self.results_frame)
