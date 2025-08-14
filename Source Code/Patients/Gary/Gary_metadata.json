@@ -1,0 +1,83 @@
+{
+  "case_name": "Gary",
+  "parameters": {
+    "name": "Gary",
+    "teaser": "2 year old boy presents with two days of mild diffuse abdominal pain with occasional bloody stools.",
+    "clinical_descrip": "2 year old boy presents with two days of mild diffuse abdominal pain with occasional bloody stools. He became acutely worse and was rushed to the ER.",
+    "perf_data": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        50.0,
+        0.01
+      ],
+      [
+        100.0,
+        0.03
+      ],
+      [
+        110.0,
+        0.05
+      ],
+      [
+        120.0,
+        0.1
+      ],
+      [
+        130.0,
+        0.5
+      ],
+      [
+        140.0,
+        1.5
+      ],
+      [
+        150.0,
+        2.5
+      ],
+      [
+        160.0,
+        5.0
+      ],
+      [
+        170.0,
+        7.5
+      ],
+      [
+        180.0,
+        10.0
+      ]
+    ],
+    "ret_data": [
+      [
+        0,
+        1
+      ],
+      [
+        60,
+        8
+      ],
+      [
+        80,
+        6
+      ],
+      [
+        100,
+        3
+      ],
+      [
+        120,
+        1
+      ],
+      [
+        180,
+        0
+      ]
+    ],
+    "coeff": 1e-100,
+    "num_stages": 1,
+    "dontstart": 1
+  }
+}

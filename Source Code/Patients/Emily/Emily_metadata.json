@@ -1,0 +1,68 @@
+{
+  "case_name": "Emily_fast_100314",
+  "parameters": {
+    "name": "Emily",
+    "teaser": "2 year old girl who complains of intermittent abdominal pain. She had an intussusception 2 days ago that was successfully reduced.",
+    "clinical_descrip": "2 y/o girl previously healthy s/p reduction of intussusception 2 days earlier, discharged last night. For 24 hours before discharge, she had no recurrent abdominal pain and was eating normally. Today she has been very quiet and complained of intermittent abdominal pain. Passed 1 stool with a few flecks of blood but no current jelly stool. No vomiting, but decreased appetite.  Temperature 98.6, Pulse 90. Abdominal exam was soft with minimal tenderness but no peritoneal signs.",
+    "perf_data": [
+      [
+        0.0,
+        0.0
+      ],
+      [
+        120.0,
+        0.0
+      ],
+      [
+        130.0,
+        0.0
+      ],
+      [
+        140.0,
+        0.0
+      ],
+      [
+        180.0,
+        0.0
+      ],
+      [
+        200.0,
+        2.5
+      ]
+    ],
+    "ret_data": [
+      [
+        0,
+        1
+      ],
+      [
+        60,
+        8
+      ],
+      [
+        80,
+        6
+      ],
+      [
+        100,
+        3
+      ],
+      [
+        120,
+        1
+      ],
+      [
+        180,
+        0
+      ]
+    ],
+    "coeff": [
+      500,
+      500,
+      500,
+      500,
+      500
+    ],
+    "num_stages": 4
+  }
+}
