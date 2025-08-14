@@ -63,7 +63,6 @@ jobs:
             '--clang',
             '--output-dir=build_windows',
             '--show-progress',
-            '--verbose'
           )
           if (Test-Path "Source Code/ARIana.ico") {
             $flags += "--windows-icon-from-ico=Source Code/ARIana.ico"
