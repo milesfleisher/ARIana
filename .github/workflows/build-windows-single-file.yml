@@ -1,0 +1,82 @@
+name: Single File Windows App
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    env:
+      NUITKA_ASSUME_YES_FOR_DOWNLOADS: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install deps
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          if (Test-Path "requirements.txt") {
+            pip install -r requirements.txt --only-binary=:all:
+          }
+          pip install --upgrade nuitka ordered-set zstandard
+          pip install --upgrade pillow pyserial numpy scipy matplotlib --only-binary=:all:
+
+      - name: Build with Nuitka
+        shell: pwsh
+        run: |
+          # Define paths once (handles spaces safely)
+          $SRC      = "Source Code"
+          $ENTRY    = Join-Path $SRC "ARIana.py"
+          $PATIENTS = Join-Path $SRC "Patients"
+          $PNG      = Join-Path $SRC "ARIana_logo.png"
+          $ICO      = Join-Path $SRC "ARIana_logo.ico"
+
+          # Optional sanity checks
+          if (!(Test-Path $ENTRY))    { Write-Host "WARN: Entry not found: $ENTRY" }
+          if (!(Test-Path $PATIENTS)) { Write-Host "WARN: Patients folder not found: $PATIENTS" }
+          if (!(Test-Path $PNG))      { Write-Host "WARN: PNG not found: $PNG" }
+          if (!(Test-Path $ICO))      { Write-Host "INFO: ICO not found (EXE will use default icon): $ICO" }
+
+          $flags = @(
+            '--onefile',
+            '--windows-console-mode=force',
+            "--include-data-dir=$PATIENTS=Patients",
+            "--include-data-file=$PNG=ARIana_logo.png",
+            '--include-module=tkinter',
+            '--include-module=PIL',
+            '--include-module=matplotlib',
+            '--include-module=numpy',
+            '--include-module=scipy',
+            '--include-module=serial',
+            '--enable-plugin=tk-inter',
+            '--enable-plugin=matplotlib',
+            '--enable-plugin=numpy',
+            '--nofollow-import-to=tests',
+            '--nofollow-import-to=numpy.distutils',
+            '--nofollow-import-to=setuptools',
+            '--output-dir=build_windows',
+            '--assume-yes-for-downloads'
+          )
+
+          # Add icon only if it exists
+          if (Test-Path $ICO) {
+            $flags += "--windows-icon-from-ico=$ICO"
+            $flags += "--include-data-file=$ICO=ARIana_logo.ico"
+          }
+
+          Write-Host "Running: python -m nuitka $($flags -join ' ') '$ENTRY'"
+          python -m nuitka $flags $ENTRY
+
+      - name: Upload build artifact (.exe only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIana-Windows-standalone
+          path: build_windows/ARIana.exe
+          if-no-files-found: error
