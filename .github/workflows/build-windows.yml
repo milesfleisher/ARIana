@@ -61,7 +61,8 @@ jobs:
             '--nofollow-import-to=tests',
             '--nofollow-import-to=numpy.distutils',
             '--nofollow-import-to=setuptools',
-            '--output-dir=build_windows'
+            '--output-dir=build_windows',
+            '--assume-yes-for-downloads'
           )
 
           # Add icon only if it exists
