@@ -6,8 +6,8 @@ on:
     branches: [ main, master ]
     paths:
       - "**.py"
-      - "Patients/**"
-      - "ARIana_logo.png"
+      - "**/Patients/**"
+      - "**/ARIana_logo.png"
       - ".github/workflows/build-macos-nuitka.yml"
 
 jobs:
@@ -20,44 +20,84 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show repo layout
+      - name: Show repo layout (debug)
         run: |
           pwd
           ls -la
-          echo "Top-level files:"
-          find . -maxdepth 1 -type f -print
-          echo "Top-level dirs:"
-          find . -maxdepth 1 -type d -print
+          echo "---- files ----"
+          git ls-files | sed 's/^/  /'
+          echo "--------------"
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"   # no pip cache (avoids requirements.txt errors)
+          python-version: "3.11"   # no pip cache (avoids requirements.txt requirement)
 
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
           pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib
 
-      - name: Verify tkinter availability
+      - name: Locate project + verify tkinter
+        id: locate
+        shell: bash
         run: |
+          set -eo pipefail
+
+          # Find ARIana.py anywhere in the repo
+          APP_MAIN="$(git ls-files | grep -E '(^|.*/)(ARIana\.py)$' | head -n1 || true)"
+          if [[ -z "$APP_MAIN" ]]; then
+            echo "ERROR: Could not find ARIana.py anywhere in repo."
+            exit 1
+          fi
+          APP_DIR="$(dirname "$APP_MAIN")"
+          [[ "$APP_DIR" == "." ]] && APP_DIR="$GITHUB_WORKSPACE"
+
+          echo "Found ARIana.py at: $APP_MAIN"
+          echo "Using APP_DIR: $APP_DIR"
+
+          # Detect Patients dir (prefer sibling of ARIana.py, else repo root)
+          if [[ -d "$APP_DIR/Patients" ]]; then
+            DATA_DIR="$APP_DIR/Patients"
+          elif [[ -d "$GITHUB_WORKSPACE/Patients" ]]; then
+            DATA_DIR="$GITHUB_WORKSPACE/Patients"
+          else
+            DATA_DIR=""
+          fi
+          echo "DATA_DIR=$DATA_DIR" >> $GITHUB_OUTPUT
+
+          # Detect app icon (prefer sibling, else repo root)
+          if [[ -f "$APP_DIR/ARIana_logo.png" ]]; then
+            ICON_PATH="$APP_DIR/ARIana_logo.png"
+          elif [[ -f "$GITHUB_WORKSPACE/ARIana_logo.png" ]]; then
+            ICON_PATH="$GITHUB_WORKSPACE/ARIana_logo.png"
+          else
+            ICON_PATH=""
+          fi
+          echo "ICON_PATH=$ICON_PATH" >> $GITHUB_OUTPUT
+
+          # Verify tkinter
           python - << 'PY'
           import tkinter as tk
           print("tkinter OK")
           PY
 
+          # Expose for later steps
+          echo "APP_MAIN=$APP_MAIN" >> $GITHUB_OUTPUT
+          echo "APP_DIR=$APP_DIR" >> $GITHUB_OUTPUT
+
       - name: Build app bundle with Nuitka
         shell: bash
         run: |
-          # Be strict on errors, but don't die on unset vars
           set -eo pipefail
+          APP_MAIN="${{ steps.locate.outputs.APP_MAIN }}"
+          APP_DIR="${{ steps.locate.outputs.APP_DIR }}"
+          DATA_DIR="${{ steps.locate.outputs.DATA_DIR }}"
+          ICON_PATH="${{ steps.locate.outputs.ICON_PATH }}"
 
-          if [[ ! -f "ARIana.py" ]]; then
-            echo "ERROR: ARIana.py not found in $(pwd)"
-            exit 1
-          fi
+          echo "Building from: $APP_DIR"
+          cd "$APP_DIR"
 
-          # Build flags dynamically so missing assets don't cause hard failure
           NUITKA_FLAGS=(
             --standalone
             --enable-plugin=tk-inter
@@ -73,32 +113,34 @@ jobs:
             --macos-sign-identity=-
           )
 
-          if [[ -d "Patients" ]]; then
-            NUITKA_FLAGS+=( --include-data-dir=Patients=Patients )
+          if [[ -n "$DATA_DIR" ]]; then
+            # Map real path -> "Patients" inside the bundle
+            NUITKA_FLAGS+=( "--include-data-dir=${DATA_DIR}=Patients" )
           else
-            echo "NOTE: Patients/ directory not found; skipping data include."
+            echo "NOTE: Patients/ not found; skipping include."
           fi
 
-          if [[ -f "ARIana_logo.png" ]]; then
-            NUITKA_FLAGS+=( --include-data-file=ARIana_logo.png=ARIana_logo.png )
-            NUITKA_FLAGS+=( --macos-app-icon=ARIana_logo.png )
+          if [[ -n "$ICON_PATH" ]]; then
+            NUITKA_FLAGS+=( "--include-data-file=${ICON_PATH}=ARIana_logo.png" )
+            NUITKA_FLAGS+=( "--macos-app-icon=${ICON_PATH}" )
           else
-            echo "NOTE: ARIana_logo.png not found; skipping icon and data file include."
+            echo "NOTE: ARIana_logo.png not found; skipping icon."
           fi
 
-          echo "Running Nuitka with flags:"
+          echo "Nuitka flags:"
           printf '  %q\n' "${NUITKA_FLAGS[@]}"
 
-          python3 -m nuitka "${NUITKA_FLAGS[@]}" ARIana.py
+          python3 -m nuitka "${NUITKA_FLAGS[@]}" "$(basename "$APP_MAIN")"
 
       - name: Create DMG
         shell: bash
         run: |
           set -eo pipefail
+          APP_DIR="${{ steps.locate.outputs.APP_DIR }}"
+          cd "$APP_DIR"
           APP_PATH="build_macos/ARIana.app"
           if [[ ! -d "$APP_PATH" ]]; then
-            echo "ERROR: Expected app bundle not found at $APP_PATH"
-            echo "Contents of build_macos:"
+            echo "ERROR: Expected app bundle not found at: $APP_DIR/$APP_PATH"
             ls -la build_macos || true
             exit 1
           fi
@@ -109,5 +151,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ARIana-macOS-DMG
-          path: ARIana.dmg
+          path: ${{ steps.locate.outputs.APP_DIR }}/ARIana.dmg
           if-no-files-found: error
