@@ -1,5 +1,5 @@
 # .github/workflows/build-linux-nuitka.yml
-name: Build ARIana (Linux, Nuitka)
+name: Build Linux App (Nuitka)
 
 on:
   workflow_dispatch:
