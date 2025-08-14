@@ -8,7 +8,6 @@ on:
       - "**.py"
       - "Patients/**"
       - "ARIana_logo.png"
-      - "requirements.txt"
       - ".github/workflows/build-macos-nuitka.yml"
 
 jobs:
@@ -24,9 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: "requirements.txt"
+          python-version: "3.11"   # ⬅ no cache
 
       - name: Show Python version
         run: python -V
@@ -34,22 +31,16 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib
 
       - name: Verify tkinter availability
-        shell: bash
         run: |
           python - << 'PY'
-          try:
-              import tkinter as tk
-              print("tkinter OK")
-          except Exception as e:
-              print("tkinter missing or broken:", e)
-              raise
+          import tkinter as tk
+          print("tkinter OK")
           PY
 
       - name: Build app bundle with Nuitka
-        shell: bash
         run: |
           set -euo pipefail
           test -f "ARIana.py"
@@ -75,9 +66,7 @@ jobs:
             ARIana.py
 
       - name: Create DMG
-        shell: bash
         run: |
-          set -euo pipefail
           APP_PATH="build_macos/ARIana.app"
           test -d "$APP_PATH"
           hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO ARIana.dmg
