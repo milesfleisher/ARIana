@@ -477,56 +477,68 @@ class IntussusceptionSimulator:
         }
 
 class PreOpImageScroller(ttk.Frame):
-    """A specialized image scroller for pre-operation with navigation at the bottom"""
+    """Scrollable image viewer for pre-operation images with click-to-zoom."""
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.image_paths = []
         self.current_index = 0
         self.photo_image = None
 
-        # Configure the grid: Row 0 (image) should expand, Row 1 (nav) should not.
+        # Layout: row 0 = image (expands), row 1 = nav (fixed)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # Image display at the top (Row 0)
+        # Image display
         self.image_label = ttk.Label(self, text="No Images Available", anchor="center")
         self.image_label.grid(row=0, column=0, sticky="nsew", pady=5)
 
-        # Navigation frame at the bottom (Row 1)
+        # Click-to-zoom
+        self.image_label.bind("<Button-1>", self.open_zoom_viewer)
+        self.image_label.configure(cursor="")  # becomes "hand2" when an image is shown
+
+        # Navigation bar (bottom)
         self.nav_frame = ttk.Frame(self)
-        # The 'sticky="ew"' ensures it spans the width but doesn't expand vertically.
         self.nav_frame.grid(row=1, column=0, sticky="ew", pady=5)
 
-        # Center the navigation buttons within the nav_frame
-        self.nav_frame.grid_columnconfigure(0, weight=1) # Left spacer
-        self.nav_frame.grid_columnconfigure(4, weight=1) # Right spacer
+        self.nav_frame.grid_columnconfigure(0, weight=1)  # left spacer
+        self.nav_frame.grid_columnconfigure(4, weight=1)  # right spacer
 
-        # Previous button
         self.prev_button = ttk.Button(self.nav_frame, text="◀", command=self.prev_image, width=3)
         self.prev_button.grid(row=0, column=1, padx=2)
 
-        # Counter label in the center
         self.counter_label = ttk.Label(self.nav_frame, text="0/0", anchor="center", width=8)
         self.counter_label.grid(row=0, column=2, padx=5)
 
-        # Next button
         self.next_button = ttk.Button(self.nav_frame, text="▶", command=self.next_image, width=3)
         self.next_button.grid(row=0, column=3, padx=2)
 
-        # Initially hide navigation controls
+        # Initially hide nav if not needed
         self.update_navigation_visibility()
 
+    # ---------- Public API ----------
     def set_images(self, image_paths):
-        self.image_paths = image_paths
+        self.image_paths = list(image_paths or [])
         self.current_index = 0
         self.update_navigation_visibility()
         if self.image_paths:
             self.display_image()
         else:
-            self.image_label.config(image="", text="No Images Available")
+            self.image_label.config(image="", text="No Images Available", cursor="")
 
+    # ---------- Navigation ----------
+    def prev_image(self):
+        if self.image_paths and self.current_index > 0:
+            self.current_index -= 1
+            self.display_image()
+
+    def next_image(self):
+        if self.image_paths and self.current_index < len(self.image_paths) - 1:
+            self.current_index += 1
+            self.display_image()
+
+    # ---------- Helpers ----------
     def update_navigation_visibility(self):
-        """Show/hide navigation controls based on number of images"""
+        """Show/hide navigation controls based on number of images."""
         if len(self.image_paths) <= 1:
             self.nav_frame.grid_remove()
         else:
@@ -534,27 +546,24 @@ class PreOpImageScroller(ttk.Frame):
         self.update_counter()
 
     def update_counter(self):
-        """Update the counter label"""
         if self.image_paths:
             self.counter_label.config(text=f"{self.current_index + 1}/{len(self.image_paths)}")
         else:
             self.counter_label.config(text="0/0")
 
-    def prev_image(self):
-        """Navigate to previous image"""
-        if self.image_paths and self.current_index > 0:
-            self.current_index -= 1
-            self.display_image()
-
-    def next_image(self):
-        """Navigate to next image"""
-        if self.image_paths and self.current_index < len(self.image_paths) - 1:
-            self.current_index += 1
-            self.display_image()
+    def open_zoom_viewer(self, event=None):
+        """Open the current image in the ZoomableImageViewer if available."""
+        if not self.image_paths:
+            return
+        idx = max(0, min(self.current_index, len(self.image_paths) - 1))
+        img_path = self.image_paths[idx]
+        if os.path.exists(img_path):
+            # Assumes your ZoomableImageViewer class is defined elsewhere in the file.
+            ZoomableImageViewer(self, img_path)
 
     def display_image(self):
         if not self.image_paths:
-            self.image_label.config(image="", text="No Images Available")
+            self.image_label.config(image="", text="No Images Available", cursor="")
             return
 
         path = self.image_paths[self.current_index]
@@ -563,23 +572,27 @@ class PreOpImageScroller(ttk.Frame):
         if os.path.exists(path):
             try:
                 img = Image.open(path)
-                container = self.image_label # Use the label itself as the container
+
+                # Size to fit the label’s current size
+                container = self.image_label
                 container.update_idletasks()
                 panel_w = container.winfo_width()
                 panel_h = container.winfo_height()
 
+                # Provide a sane default if not yet laid out
                 if panel_w < 10 or panel_h < 10:
                     panel_w, panel_h = 800, 600
 
                 img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
 
                 self.photo_image = ImageTk.PhotoImage(img)
-                self.image_label.config(image=self.photo_image, text="")
+                self.image_label.config(image=self.photo_image, text="", cursor="hand2")
             except Exception as e:
                 print(f"Error displaying image {path}: {e}")
-                self.image_label.config(image="", text=f"Image not found:\n{os.path.basename(path)}")
+                self.image_label.config(image="", text=f"Image not found:\n{os.path.basename(path)}", cursor="")
         else:
-            self.image_label.config(image="", text="No Image Available")
+            self.image_label.config(image="", text="No Image Available", cursor="")
+
 
 class ImageScroller(ttk.Frame):
     """A frame with a label to show an image and buttons to scroll through a list of images."""
@@ -965,29 +978,85 @@ class ARIanaApp:
         wrapped_text = textwrap.fill(clinical_desc, width=80)
         messagebox.showinfo("Vitals and Medical History", wrapped_text)
 
+
     def create_disclaimer_screen(self):
-        ttk.Label(self.disclaimer_frame, text="\n\n\n\n\n\nARIana Intussusception Simulator", font=("Arial", 21, "bold")).pack(pady=15)
-       
+        from tkinter import ttk
+        import tkinter as tk
+
+        # Main container (fills whole frame)
+        self.disclaimer_frame.columnconfigure(0, weight=1)
+        self.disclaimer_frame.rowconfigure(0, weight=1)
+        self.disclaimer_frame.rowconfigure(1, weight=0)
+
+        # --- Top content frame ---
+        content_frame = ttk.Frame(self.disclaimer_frame)
+        content_frame.grid(row=0, column=0, sticky="nsew")
+        content_frame.columnconfigure(0, weight=1)
+
+        # Title
+        self.disclaimer_title = ttk.Label(
+            content_frame,
+            text="\n\n\n\n\nARIana Intussusception Simulator",
+            font=("Arial", 99, "bold"),
+            anchor="center",
+            justify="center"
+        )
+        w = self.root.winfo_width()
+        h = self.root.winfo_height()
+
+        pad_x = int(w * 0.05)  # 5% of window width
+        pad_y = int(h * 0.025) # 2.5% of window height
+        self.disclaimer_title.pack(padx=pad_x, pady=pad_y)
+
+        # Disclaimer text
         disclaimer_text = """This device is designed to help a trained pediatric radiologist teach a
-trainee the basics of reducing an intussusception with an air enema. It is
-intended to supplement rather than replace the experience of performing a
-supervised intussusception reduction on an actual patient.
+    trainee the basics of reducing an intussusception with an air enema. It is
+    intended to supplement rather than replace the experience of performing a
+    supervised intussusception reduction on an actual patient.
 
-In other words, a trainee who has used this simulator a few times should
-not consider himself competent to perform an intussusception reduction in
-the absence of any further experience. There are nuances of the
-intussusception reduction procedure that are not within the scope of this
-device and which can only be gained through practical experience under the
-watchful eye of a trained pediatric radiologist.
+    In other words, a trainee who has used this simulator a few times should
+    not consider himself competent to perform an intussusception reduction in
+    the absence of any further experience. There are nuances of the
+    intussusception reduction procedure that are not within the scope of this
+    device and which can only be gained through practical experience under the
+    watchful eye of a trained pediatric radiologist.
 
-If you agree with the above disclaimer, click "I Agree" to use this
-program."""
+    If you agree with the above disclaimer, click "I Agree" to use this
+    program."""
+        self.disclaimer_label = ttk.Label(
+            content_frame,
+            text=disclaimer_text,
+            font=("Arial", 99),
+            wraplength=800,
+            justify="center",
+            anchor="center"
+        )
+        self.disclaimer_label.pack(padx=60, pady=30)
 
-        ttk.Label(self.disclaimer_frame, text=disclaimer_text, font=("Arial", 14), justify=tk.CENTER).pack(pady=15)
+        # --- Bottom button bar ---
         button_frame = ttk.Frame(self.disclaimer_frame)
-        button_frame.pack(pady=20)
-        ttk.Button(button_frame, text="I Agree", command=self.show_startup).pack(side=tk.LEFT, padx=10)
-        ttk.Button(button_frame, text="Decline", command=self.root.quit).pack(side=tk.LEFT, padx=10)
+        button_frame.grid(row=1, column=0, sticky="ew", pady=20)
+        button_frame.columnconfigure((0, 1), weight=1)
+
+        ttk.Button(button_frame, text="I Agree", command=self.show_startup).grid(row=0, column=0, padx=10)
+        ttk.Button(button_frame, text="Decline", command=self.root.quit).grid(row=0, column=1, padx=10)
+
+        # --- Resize logic to scale text ---
+        def _resize_fonts(event=None):
+            w = self.root.winfo_width()
+            h = self.root.winfo_height()
+
+            # scale based on smaller of width/height
+            scale = min(w / 1200, h / 800)
+            title_size = max(14, int(21 * scale))
+            text_size = max(10, int(14 * scale))
+
+            self.disclaimer_title.config(font=("Arial", title_size, "bold"))
+            self.disclaimer_label.config(font=("Arial", text_size), wraplength=min(1400, int(w * 0.9)))
+
+        self.root.bind("<Configure>", _resize_fonts)
+
+
     def create_startup_screen(self):
         main_frame = ttk.Frame(self.startup_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -1359,10 +1428,18 @@ program."""
         """Render a matplotlib figure to a Tkinter-compatible PhotoImage."""
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
-        img = Image.frombytes("RGB", canvas.get_width_height(), canvas.tostring_rgb())
+        buf = canvas.buffer_rgba()  # modern API
+        w, h = canvas.get_width_height()
+
+        # Create a Pillow image from the RGBA buffer without copying
+        img = Image.frombuffer("RGBA", (w, h), buf, "raw", "RGBA", 0, 1)
+        # If you want RGB (no transparency), convert here
+        img = img.convert("RGB")
+
         photo = ImageTk.PhotoImage(img)
         plt.close(fig)
         return photo
+
 
     def plot_performance_data(self, data):
         self.result_plot_images = []
