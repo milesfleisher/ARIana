@@ -1,0 +1,80 @@
+name: Build App ARIana (Nuitka)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "**.py"
+      - "Patients/**"
+      - "ARIana_logo.png"
+      - ".github/workflows/build-linux-nuitka.yml"
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # System packages helpful for Tkinter apps and Nuitka on Ubuntu
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-tk \
+            tk \
+            tcl \
+            patchelf \
+            build-essential
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib
+
+      - name: Verify tkinter import
+        run: |
+          python - << 'PY'
+          import tkinter as tk
+          print("tkinter OK")
+          PY
+
+      - name: Build (Linux, Nuitka)
+        run: |
+          set -euo pipefail
+          test -f "ARIana.py"
+          test -f "ARIana_logo.png"
+          test -d "Patients"
+
+          python3 -m nuitka \
+            --standalone \
+            --include-data-dir=Patients=Patients \
+            --include-data-file=ARIana_logo.png=ARIana_logo.png \
+            --include-module=tkinter \
+            --include-module=PIL \
+            --include-module=matplotlib \
+            --include-module=numpy \
+            --include-module=scipy \
+            --include-module=serial \
+            --enable-plugin=tk-inter \
+            --output-dir=build_linux \
+            ARIana.py
+
+      - name: Package artifact (.tar.gz)
+        run: |
+          tar -czvf ARIana-linux.tar.gz build_linux/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIana-linux
+          path: ARIana-linux.tar.gz
+          if-no-files-found: error
