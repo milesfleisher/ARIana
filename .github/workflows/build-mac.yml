@@ -33,7 +33,7 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          # imageio lets Nuitka convert PNG to macOS icon format automatically
+          # imageio enables PNG -> .icns conversion for --macos-app-icon
           pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib imageio
 
       - name: Locate project + verify tkinter
@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
 
-          # Use python -c so arguments are passed correctly (handles spaces)
+          # Absolute paths (safe with spaces)
           APP_MAIN_ABS="$(python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$APP_MAIN_REL")"
           APP_DIR_ABS="$(python -c 'import os,sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$APP_MAIN_REL")"
 
@@ -88,24 +88,26 @@ jobs:
           set -eo pipefail
 
           APP_MAIN_ABS="${{ steps.locate.outputs.APP_MAIN_ABS }}"
+          APP_DIR_ABS="${{ steps.locate.outputs.APP_DIR_ABS }}"
           DATA_DIR_ABS="${{ steps.locate.outputs.DATA_DIR_ABS }}"
           ICON_ABS="${{ steps.locate.outputs.ICON_ABS }}"
 
-          OUT_DIR="$GITHUB_WORKSPACE/build_macos"
+          OUT_DIR="$APP_DIR_ABS/build_macos"
 
+          # === Exactly your flags, with absolute paths and quoting ===
           NUITKA_FLAGS=(
             --standalone
-            --enable-plugin=tk-inter
+            --macos-create-app-bundle
+            --macos-app-name=ARIana
             --include-module=tkinter
             --include-module=PIL
             --include-module=matplotlib
             --include-module=numpy
             --include-module=scipy
             --include-module=serial
-            --macos-create-app-bundle
-            --macos-app-name=ARIana
-            --macos-sign-identity=-
+            --enable-plugin=tk-inter
             "--output-dir=$OUT_DIR"
+            "--macos-sign-identity=-"
           )
 
           if [[ -n "$DATA_DIR_ABS" ]]; then
@@ -130,19 +132,20 @@ jobs:
         shell: bash
         run: |
           set -eo pipefail
-          OUT_DIR="$GITHUB_WORKSPACE/build_macos"
+          APP_DIR_ABS="${{ steps.locate.outputs.APP_DIR_ABS }}"
+          OUT_DIR="$APP_DIR_ABS/build_macos"
           APP_PATH="$OUT_DIR/ARIana.app"
           if [[ ! -d "$APP_PATH" ]]; then
             echo "ERROR: Expected app bundle not found at: $APP_PATH"
             ls -la "$OUT_DIR" || true
             exit 1
           fi
-          hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO "$GITHUB_WORKSPACE/ARIana.dmg"
-          ls -lh "$GITHUB_WORKSPACE/ARIana.dmg"
+          hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO "$APP_DIR_ABS/ARIana.dmg"
+          ls -lh "$APP_DIR_ABS/ARIana.dmg"
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: ARIana-macOS-DMG
-          path: ARIana.dmg
+          path: ${{ steps.locate.outputs.APP_DIR_ABS }}/ARIana.dmg
           if-no-files-found: error
