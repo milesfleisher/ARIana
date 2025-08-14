@@ -6,6 +6,7 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -22,7 +23,7 @@ jobs:
           if (Test-Path "requirements.txt") {
             pip install -r requirements.txt --only-binary=:all:
           }
-          # Ensure runtime deps even if not in requirements.txt
+          # Ensure runtime deps even if not listed in requirements.txt
           pip install --upgrade pillow pyserial numpy scipy matplotlib --only-binary=:all:
 
       - name: Verify imports (fail fast)
@@ -31,7 +32,9 @@ jobs:
           $modules = @("PIL","serial","numpy","scipy","matplotlib","tkinter")
           $missing = @()
           foreach ($m in $modules) {
-            $p = Start-Process -FilePath python -ArgumentList "-c","import $m" -NoNewWindow -PassThru -Wait
+            $cmd = "import $m"
+            # Pass the entire -c "import module" as a single argument
+            $p = Start-Process -FilePath python -ArgumentList "-c `"$cmd`"" -NoNewWindow -PassThru -Wait
             if ($p.ExitCode -ne 0) { $missing += $m }
           }
           if ($missing.Count -gt 0) {
@@ -46,8 +49,8 @@ jobs:
           $flags = @(
             '--standalone',
             '--windows-console-mode=disable',
-            '--include-data-dir=Source Code/Patients=Patients',
-            '--include-data-file=Source Code/ARIana_logo.png=ARIana_logo.png',
+            "--include-data-dir=Source Code/Patients=Patients",
+            "--include-data-file=Source Code/ARIana_logo.png=ARIana_logo.png",
             '--include-module=tkinter',
             '--include-module=PIL',
             '--include-module=matplotlib',
@@ -62,15 +65,16 @@ jobs:
             '--verbose'
           )
 
-          # Optional icon if you add it to the repo at Source Code/ARIana.ico
+          # Optional icon if you add it to the repo at: Source Code/ARIana.ico
           if (Test-Path "Source Code/ARIana.ico") {
-            $flags += '--windows-icon-from-ico=Source Code/ARIana.ico'
+            $flags += "--windows-icon-from-ico=Source Code/ARIana.ico"
           }
 
           # Build (quote entry path because of space in folder name)
+          Write-Host "Running: python -m nuitka $($flags -join ' ') 'Source Code/ARIana.py'"
           python -m nuitka $flags "Source Code/ARIana.py"
 
-      - name: Upload build
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ARIana-Windows-standalone
