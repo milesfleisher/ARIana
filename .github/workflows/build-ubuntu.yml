@@ -1,5 +1,4 @@
-# .github/workflows/build-linux-nuitka.yml
-name: Build Linux App (Nuitka)
+name: Build ARIana (Linux, Nuitka)
 
 on:
   workflow_dispatch:
@@ -14,48 +13,95 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show repo layout
+        run: |
+          pwd
+          ls -la
+          echo "Top-level files:"
+          find . -maxdepth 1 -type f -print
+          echo "Top-level dirs:"
+          find . -maxdepth 1 -type d -print
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"   # ⬅️ removed cache: "pip"
+          python-version: "3.11"   # no pip cache
 
       - name: Install system packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk tk tcl patchelf build-essential
+          sudo apt-get install -y \
+            python3-tk tk tcl \
+            patchelf build-essential
 
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
           pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib
 
-      - name: Build (Linux, Nuitka)
+      - name: Verify tkinter import
         run: |
-          set -euo pipefail
-          test -f "ARIana.py"
-          test -f "ARIana_logo.png"
-          test -d "Patients"
+          python - << 'PY'
+          import tkinter as tk
+          print("tkinter OK")
+          PY
 
-          python3 -m nuitka \
-            --standalone \
-            --include-data-dir=Patients=Patients \
-            --include-data-file=ARIana_logo.png=ARIana_logo.png \
-            --include-module=tkinter \
-            --include-module=PIL \
-            --include-module=matplotlib \
-            --include-module=numpy \
-            --include-module=scipy \
-            --include-module=serial \
-            --enable-plugin=tk-inter \
-            --output-dir=build_linux \
-            ARIana.py
+      - name: Build (Linux, Nuitka)
+        shell: bash
+        run: |
+          set -eo pipefail
+
+          if [[ ! -f "ARIana.py" ]]; then
+            echo "ERROR: ARIana.py not found in $(pwd)"
+            exit 1
+          fi
+
+          NUITKA_FLAGS=(
+            --standalone
+            --enable-plugin=tk-inter
+            --include-module=tkinter
+            --include-module=PIL
+            --include-module=matplotlib
+            --include-module=numpy
+            --include-module=scipy
+            --include-module=serial
+            --output-dir=build_linux
+          )
+
+          if [[ -d "Patients" ]]; then
+            NUITKA_FLAGS+=( --include-data-dir=Patients=Patients )
+          else
+            echo "NOTE: Patients/ directory not found; skipping data include."
+          fi
+
+          if [[ -f "ARIana_logo.png" ]]; then
+            NUITKA_FLAGS+=( --include-data-file=ARIana_logo.png=ARIana_logo.png )
+          else
+            echo "NOTE: ARIana_logo.png not found; skipping data file include."
+          fi
+
+          echo "Running Nuitka with flags:"
+          printf '  %q\n' "${NUITKA_FLAGS[@]}"
+
+          python3 -m nuitka "${NUITKA_FLAGS[@]}" ARIana.py
 
       - name: Package artifact (.tar.gz)
-        run: tar -czvf ARIana-linux.tar.gz build_linux/
+        shell: bash
+        run: |
+          set -eo pipefail
+          if [[ ! -d "build_linux" ]]; then
+            echo "ERROR: build_linux/ not found; build likely failed."
+            exit 1
+          fi
+          tar -czvf ARIana-linux.tar.gz build_linux/
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ARIana-linux
           path: ARIana-linux.tar.gz
