@@ -61,8 +61,7 @@ jobs:
             '--enable-plugin=tk-inter',
             '--nofollow-import-to=tests',
             '--clang',
-            '--output-dir=build_windows',
-            '--show-progress'
+            '--output-dir=build_windows'
           )
           if (Test-Path "Source Code/ARIana.ico") {
             $flags += "--windows-icon-from-ico=Source Code/ARIana.ico"
