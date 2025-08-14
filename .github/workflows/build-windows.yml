@@ -6,6 +6,8 @@ on:
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      NUITKA_ASSUME_YES_FOR_DOWNLOADS: "1"
 
     steps:
       - name: Checkout repo
@@ -50,8 +52,9 @@ jobs:
           $flags = @(
             '--standalone',
             '--windows-console-mode=force',
-            "--include-data-dir=Source Code/Patients=Patients",
-            "--include-data-file=Source Code/ARIana_logo.png=ARIana_logo.png",
+            "--include-data-dir=Source\Code/Patients=Patients",
+            "--include-data-file=Source\Code/ARIana_logo.png=ARIana_logo.png",
+            '--windows-icon-from-ico=Source\Code/ARIana_logo.ico',
             '--include-module=tkinter',
             '--include-module=PIL',
             '--include-module=matplotlib',
@@ -61,10 +64,10 @@ jobs:
             '--enable-plugin=tk-inter',
             '--enable-plugin=matplotlib',
             '--enable-plugin=numpy',
-            '--output-dir=build_windows',
-            '--assume-yes-for-downloads'
-
-
+            '--nofollow-import-to=tests',
+            '--nofollow-import-to=numpy.distutils',
+            '--nofollow-import-to=setuptools',
+            '--output-dir=build_windows'
           )
           if (Test-Path "Source Code/ARIana_logo.ico") {
             $flags += "--windows-icon-from-ico=Source Code/ARIana_logo.ico"
