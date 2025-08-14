@@ -1,0 +1,95 @@
+name: Build ARIana (macOS, Nuitka)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "**.py"
+      - "Patients/**"
+      - "ARIana_logo.png"
+      - ".github/workflows/build-macos-nuitka.yml"
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    env:
+      # Makes some Tk + Matplotlib noise go away during build
+      TK_SILENCE_DEPRECATION: "1"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Show Python version
+        run: python -V
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Core build tool
+          pip install "nuitka>=2.4"
+          # Your runtime deps (prebuilt wheels on macOS runners)
+          pip install pillow numpy scipy pyserial matplotlib
+
+      - name: Verify tkinter availability
+        shell: bash
+        run: |
+          python - << 'PY'
+          try:
+              import tkinter as tk
+              print("tkinter OK")
+          except Exception as e:
+              print("tkinter missing or broken:", e)
+              # Optional: fail early with a clear message
+              raise
+          PY
+
+      - name: Build app bundle with Nuitka
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Ensure expected files/dirs exist
+          test -f "ARIana.py"
+          test -f "ARIana_logo.png"
+          test -d "Patients"
+
+          python3 -m nuitka \
+            --standalone \
+            --macos-create-app-bundle \
+            --macos-app-name="ARIana" \
+            --include-data-dir=Patients=Patients \
+            --include-data-file=ARIana_logo.png=ARIana_logo.png \
+            --include-module=tkinter \
+            --include-module=PIL \
+            --include-module=matplotlib \
+            --include-module=numpy \
+            --include-module=scipy \
+            --include-module=serial \
+            --enable-plugin=tk-inter \
+            --output-dir=build_macos \
+            --macos-app-icon=ARIana_logo.png \
+            --macos-sign-identity="-" \
+            ARIana.py
+
+      - name: Create DMG
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="build_macos/ARIana.app"
+          test -d "$APP_PATH"
+          hdiutil create -volname "ARIana" -srcfolder "$APP_PATH" -ov -format UDZO ARIana.dmg
+          ls -lh ARIana.dmg
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ARIana-macOS-DMG
+          path: ARIana.dmg
+          if-no-files-found: error
