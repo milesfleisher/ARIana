@@ -6,7 +6,7 @@ on:
       python_version:
         description: 'Python version on runner'
         required: false
-        default: '3.15'   # change if 3.15 isn’t available on Actions
+        default: '3.10'   # change if 3.15 isn’t available on Actions
       onefile:
         description: 'Build single-file EXE? true/false'
         required: false
