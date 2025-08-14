@@ -27,7 +27,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    print("Starting application...")
+    #print("Starting application...")
     
     # Import and run the application directly
     # When packaged by Nuitka, intussusception_trainer will be part of the executable
