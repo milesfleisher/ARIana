@@ -23,7 +23,9 @@ jobs:
           if (Test-Path "requirements.txt") {
             pip install -r requirements.txt --only-binary=:all:
           }
-          # Ensure runtime deps even if not listed in requirements.txt
+          # Compiler + runtime deps
+          pip install --upgrade nuitka ordered-set zstandard
+          # Your app's imports
           pip install --upgrade pillow pyserial numpy scipy matplotlib --only-binary=:all:
 
       - name: Verify imports (fail fast)
@@ -33,7 +35,6 @@ jobs:
           $missing = @()
           foreach ($m in $modules) {
             $cmd = "import $m"
-            # Pass the entire -c "import module" as a single argument
             $p = Start-Process -FilePath python -ArgumentList "-c `"$cmd`"" -NoNewWindow -PassThru -Wait
             if ($p.ExitCode -ne 0) { $missing += $m }
           }
@@ -64,13 +65,9 @@ jobs:
             '--show-progress',
             '--verbose'
           )
-
-          # Optional icon if you add it to the repo at: Source Code/ARIana.ico
           if (Test-Path "Source Code/ARIana.ico") {
             $flags += "--windows-icon-from-ico=Source Code/ARIana.ico"
           }
-
-          # Build (quote entry path because of space in folder name)
           Write-Host "Running: python -m nuitka $($flags -join ' ') 'Source Code/ARIana.py'"
           python -m nuitka $flags "Source Code/ARIana.py"
 
