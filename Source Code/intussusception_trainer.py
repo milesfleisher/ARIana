@@ -13,6 +13,8 @@ import numpy as np
 import textwrap
 from scipy.ndimage import gaussian_filter1d
 from scipy.interpolate import interp1d
+from matplotlib.figure import Figure 
+
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -795,18 +797,55 @@ class ZoomableImageViewer(tk.Toplevel):
 
 class ARIanaApp:
     """Main application class using Tkinter GUI"""   
+   # In class ARIanaApp:
+
     def __init__(self):
         self.root = tk.Tk()
-        self.root.bind("<Configure>", self.on_window_resize)
-        self.root.title("ARIana Intussusception Simulator")
-        self.root.iconphoto(False, tk.PhotoImage(file="ARIana_logo.png"))
 
+        # --- ALL INSTANCE ATTRIBUTES ARE DEFINED FIRST ---
+        # This prevents all startup crashes (AttributeError).
+
+        # App State & Data
         self.result_plot_images = []
         self.result_plot_index = 0
-
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
         self.called_surgery_from_preop = False
+        self.warning_shown = False
+        self.current_case = None
+
+        # Core Components
+        self.case_loader = CaseLoader()
+        self.simulator = IntussusceptionSimulator()
+        self.all_cases_data = []
+
+        # Tkinter Variables (for widgets)
+        self.pressure_var = tk.DoubleVar(value=0)
+        self.virtual_slider_var = tk.BooleanVar(value=False)
+        self.visibility_vars = {}
+
+        # UI Element References (to be populated in create_widgets)
+        self.status_labels = {}
+        self.status_label_last_values = {}
+        self.notebook = None
+        self.pre_op_image_scroller = None
+        self.results_image_scroller = None
+        self.plot_image_label = None
+        self.results_summary = None
+        self.image_label = None
+        self.warning_label = None
+
+        # Manometer & Threading
+        self.manometer_queue = queue.Queue()
+        self.manometer_thread = ManometerThread(self.manometer_queue)
+        self.manometer_pressure = 0
+
+        # --- CONFIGURE THE ROOT WINDOW ---
+        # The icon is set once and stored to prevent garbage collection.
+        self.app_icon = tk.PhotoImage(file="ARIana_logo.png")
+        self.root.iconphoto(False, self.app_icon)
+        
+        self.root.bind("<Configure>", self.on_window_resize)
+        self.root.title("ARIana Intussusception Simulator")
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
@@ -814,29 +853,16 @@ class ARIanaApp:
         app_h = int(screen_h * 0.95)
         self.root.geometry(f"{app_w}x{app_h}")
 
-        self.case_loader = CaseLoader()
-        self.all_cases_data = []
-        self.simulator = IntussusceptionSimulator()
-        
-        self.pressure_var = tk.DoubleVar(value=0)
-        
-        # Initialize status_labels here, before create_widgets()
-        self.status_labels = {}
-        self.status_label_last_values = {} # New: Store last known values
-        self.warning_shown = False  # Add debouncing flag for 3-minute warning
-
-        # Manometer integration
-        self.manometer_queue = queue.Queue()
-        self.manometer_thread = ManometerThread(self.manometer_queue)
+        # --- START BACKGROUND PROCESSES ---
         self.manometer_thread.start()
-        self.manometer_pressure = 0 # Store latest manometer pressure
 
-        # Call create_widgets first to ensure all frames are initialized
+        # --- CREATE UI (Now that all attributes are ready) ---
         self.create_widgets()
-        self.show_disclaimer()
 
-        # Start checking manometer queue periodically
+        # --- SET INITIAL APP STATE ---
+        self.show_disclaimer()
         self.check_manometer_queue()
+
 
     def create_widgets(self):
         self.notebook = ttk.Notebook(self.root)
@@ -1432,6 +1458,8 @@ class ARIanaApp:
         plt.close(fig)
         return photo
 
+    # In class ARIanaApp:
+
     def plot_performance_data(self, data):
         self.result_plot_images = []
         self.result_plot_index = 0
@@ -1443,19 +1471,18 @@ class ARIanaApp:
         times = np.array(data["time_history"])
         pressures = np.array(data["pressure_history"])
         stages = np.array(data["stage_history"])
-        showplot = True
+
         if len(times) < 2:
-            print("Not enough data points to generate plot.")        
-            showplot=False
+            print("Not enough data points to generate plot.")
             return
 
-        # Remove duplicates
+        # Remove duplicates to prevent interpolation errors
         unique_times, unique_indices = np.unique(times, return_index=True)
         times = unique_times
         pressures = pressures[unique_indices]
         stages = stages[unique_indices]
 
-        # Interpolate
+        # Interpolate for a smoother plot
         dense_time = np.linspace(times[0], times[-1], 200)
         pressure_interp = interp1d(times, pressures, kind='linear', fill_value="extrapolate")
         stage_interp = interp1d(times, stages, kind='previous', fill_value="extrapolate")
@@ -1463,8 +1490,11 @@ class ARIanaApp:
         smooth_pressure = gaussian_filter1d(pressure_interp(dense_time), sigma=2)
         smooth_stage = gaussian_filter1d(stage_interp(dense_time), sigma=1.5)
 
-        # First plot: smoothed
-        fig, ax1 = plt.subplots(figsize=(8, 4))
+        # --- ICON FIX: Use Figure object directly, not pyplot ---
+        # This prevents Matplotlib from interfering with the Tkinter window manager.
+        fig = Figure(figsize=(8, 4), dpi=100)
+        ax1 = fig.add_subplot(111)
+        
         ax1.set_xlabel("Time (s)")
         ax1.set_ylabel("Pressure (mmHg)", color="red")
         ax1.plot(dense_time, smooth_pressure, color="red", label="Smoothed Pressure")
@@ -1474,14 +1504,17 @@ class ARIanaApp:
         ax2.set_ylabel("Stage", color="blue")
         ax2.plot(dense_time, smooth_stage, color="blue", label="Smoothed Stage")
         ax2.tick_params(axis="y", labelcolor="blue")
-        ax2.set_yticks(range(1, max(stages) + 2))
+        
+        # Ensure y-ticks for stages are integers
+        max_stage = int(max(stages)) if len(stages) > 0 else 1
+        ax2.set_yticks(range(1, max_stage + 2))
 
         fig.tight_layout()
         self.result_plot_images.append(self.render_figure_to_photoimage(fig))
 
-        # Show first plot
-        if showplot != False:
-            self.show_plot_image()
+        # Show the generated plot
+        self.show_plot_image()
+
   
     def show_disclaimer(self):
         self.notebook.select(self.disclaimer_frame)
