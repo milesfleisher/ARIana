@@ -1,4 +1,4 @@
-name: Single File Linux App
+name: Build Linux App (Nuitka)
 
 on:
   workflow_dispatch:
