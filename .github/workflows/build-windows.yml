@@ -1,0 +1,138 @@
+name: Build Windows EXE (Nuitka)
+
+on:
+  workflow_dispatch:
+    inputs:
+      python_version:
+        description: 'Python version on runner (use 3.11 unless 3.15 is available)'
+        required: false
+        default: '3.11'
+      onefile:
+        description: 'Build single-file EXE? true/false'
+        required: false
+        default: 'true'
+      icon_path:
+        description: 'Optional Windows .ico (e.g., ARIana_logo.ico)'
+        required: false
+        default: ''
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve inputs
+        id: cfg
+        run: |
+          $py = if ('${{ github.event.inputs.python_version }}') { '${{ github.event.inputs.python_version }}' } else { '3.11' }
+          $onefile = if ('${{ github.event.inputs.onefile }}' -eq 'false') { 'false' } else { 'true' }
+          $icon = '${{ github.event.inputs.icon_path }}'
+          echo "python=$py" >> $env:GITHUB_OUTPUT
+          echo "onefile=$onefile" >> $env:GITHUB_OUTPUT
+          echo "icon=$icon" >> $env:GITHUB_OUTPUT
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ steps.cfg.outputs.python }}
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-${{ steps.cfg.outputs.python }}-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ steps.cfg.outputs.python }}-
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+          pip install --upgrade nuitka ordered-set zstandard
+
+      - name: Build (match mac assets & modules)
+        id: build
+        run: |
+          # Entry script & names (from your mac command)
+          $entry = "ARIana.py"
+          $appName = "ARIana"
+          if (-not (Test-Path $entry)) {
+            Write-Error "Entry script not found: $entry"
+          }
+
+          $flags = @()
+
+          # onefile/standalone
+          if (${{ steps.cfg.outputs.onefile }} -eq 'true') { $flags += '--mode=onefile' } else { $flags += '--mode=standalone' }
+
+          # GUI app (no console)
+          $flags += '--windows-console-mode=disable'
+
+          # Data: Patients dir mirrored to Patients
+          if (Test-Path "Patients") {
+            $flags += '--include-data-dir=Patients=Patients'
+          } else {
+            Write-Host "Warning: Patients directory not found; skipping include-data-dir"
+          }
+
+          # Data: ARIana_logo.png included as ARIana_logo.png (same name)
+          if (Test-Path "ARIana_logo.png") {
+            $flags += '--include-data-file=ARIana_logo.png=ARIana_logo.png'
+          } else {
+            Write-Host "Warning: ARIana_logo.png not found; skipping include-data-file"
+          }
+
+          # Force modules to mirror your mac build
+          $flags += @(
+            '--include-module=tkinter',
+            '--include-module=PIL',
+            '--include-module=matplotlib',
+            '--include-module=numpy',
+            '--include-module=scipy',
+            '--include-module=serial',
+            '--enable-plugin=tk-inter'
+          )
+
+          # Optional icon (Windows needs .ico)
+          if ('${{ steps.cfg.outputs.icon }}') {
+            if (Test-Path '${{ steps.cfg.outputs.icon }}') {
+              $flags += "--windows-icon-from-ico=${{ steps.cfg.outputs.icon }}"
+            } else {
+              Write-Host "Icon not found, skipping: ${{ steps.cfg.outputs.icon }}"
+            }
+          }
+
+          # Helpful defaults
+          $flags += '--nofollow-import-to=tests'
+          $flags += '--clang'
+
+          Write-Host "Nuitka flags: $($flags -join ' ')"
+          python -m nuitka $flags $entry
+
+          # Find output .exe
+          $base = [IO.Path]::GetFileNameWithoutExtension($entry)
+          $exeCandidates = @(
+            "$base.exe",                  # onefile default
+            ".\dist\$base\$base.exe"      # standalone default
+          ) | Where-Object { Test-Path $_ }
+
+          if ($exeCandidates.Count -eq 0) {
+            Write-Error "Could not locate built EXE for $base"
+          }
+
+          $exe = $exeCandidates[0]
+          echo "exe_path=$exe" >> $env:GITHUB_OUTPUT
+          Write-Host "Built EXE: $exe"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: ${{ steps.build.outputs.exe_path }}
+          if-no-files-found: error
