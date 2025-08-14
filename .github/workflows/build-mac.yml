@@ -2,13 +2,6 @@ name: Build Mac App (Nuitka)
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
-    paths:
-      - "**.py"
-      - "**/Patients/**"
-      - "**/ARIana_logo.png"
-      - ".github/workflows/build-macos-nuitka.yml"
 
 jobs:
   build-macos:
