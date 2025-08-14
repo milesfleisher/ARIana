@@ -101,6 +101,7 @@ jobs:
             --include-module=scipy
             --include-module=serial
             "--output-dir=$OUT_DIR"
+            --output-filename=ARIana
           )
 
           if [[ -n "$DATA_DIR_ABS" ]]; then
