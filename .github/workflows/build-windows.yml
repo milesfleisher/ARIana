@@ -23,9 +23,7 @@ jobs:
           if (Test-Path "requirements.txt") {
             pip install -r requirements.txt --only-binary=:all:
           }
-          # Compiler + runtime deps
           pip install --upgrade nuitka ordered-set zstandard
-          # Your app's imports
           pip install --upgrade pillow pyserial numpy scipy matplotlib --only-binary=:all:
 
       - name: Verify imports (fail fast)
@@ -46,6 +44,8 @@ jobs:
 
       - name: Build with Nuitka
         shell: pwsh
+        env:
+          NUITKA_ASSUME_YES_FOR_DOWNLOADS: "1"
         run: |
           $flags = @(
             '--standalone',
@@ -61,7 +61,8 @@ jobs:
             '--enable-plugin=tk-inter',
             '--nofollow-import-to=tests',
             '--clang',
-            '--output-dir=build_windows'
+            '--output-dir=build_windows',
+            '--assume-yes-for-downloads'   # <-- auto-accept tool downloads
           )
           if (Test-Path "Source Code/ARIana.ico") {
             $flags += "--windows-icon-from-ico=Source Code/ARIana.ico"
