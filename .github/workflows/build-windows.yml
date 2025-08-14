@@ -61,7 +61,10 @@ jobs:
             '--enable-plugin=tk-inter',
             '--enable-plugin=matplotlib',
             '--enable-plugin=numpy',
-            '--output-dir=build_windows'
+            '--output-dir=build_windows',
+            '--assume-yes-for-downloads'
+
+
           )
           if (Test-Path "Source Code/ARIana_logo.ico") {
             $flags += "--windows-icon-from-ico=Source Code/ARIana_logo.ico"
