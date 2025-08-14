@@ -19,8 +19,9 @@ import queue
 
 def main():
     """Main launcher function"""
-    print("ARIana Intussusception Simulator")
-    print("=" * 40)
+    #terminal debug text
+    #print("ARIana Intussusception Simulator")
+    #print("=" * 40)
     
     # Ensure we're in the script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
