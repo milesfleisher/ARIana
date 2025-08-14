@@ -539,7 +539,7 @@ If you encounter problems, consult the following troubleshooting tips:
     -   Close any other serial applications (e.g., Arduino IDE, terminal emulators) that might be using the COM port.
     -   Confirm that the CP2102 driver is correctly installed.
     -   As a workaround, use the `Virtual Pressure` mode to continue the simulation.
--   **Immediate end on Start:** This usually indicates that the case metadata has `dontstart: 1`, which triggers a contraindication scenario.
+-   **Immediate end after Preprocedure:** This usually indicates that the case metadata has `dontstart: 1`, which triggers a contraindication scenario.
 -   **Unexpected time endings:** The 3-minute warning is informational. The 5-minute limit is a hard stop by design, and exceeding the fluoroscopy limit also ends the case as intended.
 
 ---
@@ -549,7 +549,7 @@ If you encounter problems, consult the following troubleshooting tips:
 ## Attribution & Provenance
 
 -   **Original MATLAB manual:** `ARI manual 201409.pdf` (2014).
--   **Original authors:** Lucy, LLC (per PDF metadata). If specific individual author names/affiliations are known, they should be added here.
+-   **Original authors:** S.K.Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexier, M.S. Fleisher
 -   **This release:** A Python/Tk re-implementation building upon the 2014 MATLAB ARI/ARIana simulator and manual.
 
 The clinical workflow language (e.g., Pre-Op Checklist, safety timers, fluoroscopy guidance) and several UI conventions are adapted from the original manual. All original credit belongs to the original authors.
