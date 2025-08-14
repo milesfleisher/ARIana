@@ -2,6 +2,8 @@ name: Single File Windows App
 
 on:
   workflow_dispatch:
+  workflow_call: {}    # let other workflows call it
+
 
 jobs:
   build-windows:
