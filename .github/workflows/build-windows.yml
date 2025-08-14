@@ -2,6 +2,8 @@ name: Build Windows App (Nuitka)
 
 on:
   workflow_dispatch:
+  workflow_call: {}    # let other workflows call it
+
 
 jobs:
   build-windows:
