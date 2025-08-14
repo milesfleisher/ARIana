@@ -38,7 +38,7 @@ jobs:
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib
+          pip install "nuitka>=2.4" pillow numpy scipy pyserial matplotlib imageio
 
       - name: Locate project + verify tkinter
         id: locate
@@ -53,15 +53,9 @@ jobs:
             exit 1
           fi
 
-          # Absolute paths (safe with spaces)
-          APP_MAIN_ABS="$(python - <<'PY'
-          import os,sys; print(os.path.abspath(sys.argv[1]))
-          PY
-          "$APP_MAIN_REL")"
-          APP_DIR_ABS="$(python - <<'PY'
-          import os,sys; print(os.path.dirname(os.path.abspath(sys.argv[1])))
-          PY
-          "$APP_MAIN_REL")"
+          # Absolute paths (safe with spaces) — use python -c, not here-doc with argv
+          APP_MAIN_ABS="$(python -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$APP_MAIN_REL")"
+          APP_DIR_ABS="$(python -c 'import os,sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$APP_MAIN_REL")"
 
           # Prefer Patients next to script; else repo root; else empty
           if [[ -d "$APP_DIR_ABS/Patients" ]]; then
@@ -81,10 +75,10 @@ jobs:
             ICON_ABS=""
           fi
 
-          echo "APP_MAIN_ABS=$APP_MAIN_ABS" >> $GITHUB_OUTPUT
-          echo "APP_DIR_ABS=$APP_DIR_ABS"   >> $GITHUB_OUTPUT
-          echo "DATA_DIR_ABS=$DATA_DIR_ABS" >> $GITHUB_OUTPUT
-          echo "ICON_ABS=$ICON_ABS"         >> $GITHUB_OUTPUT
+          echo "APP_MAIN_ABS=$APP_MAIN_ABS" >> "$GITHUB_OUTPUT"
+          echo "APP_DIR_ABS=$APP_DIR_ABS"   >> "$GITHUB_OUTPUT"
+          echo "DATA_DIR_ABS=$DATA_DIR_ABS" >> "$GITHUB_OUTPUT"
+          echo "ICON_ABS=$ICON_ABS"         >> "$GITHUB_OUTPUT"
 
           # Verify tkinter import works
           python - << 'PY'
@@ -122,7 +116,6 @@ jobs:
           fi
 
           if [[ -n "$ICON_ABS" ]]; then
-            # Not an icon on Linux, but include the file for runtime use
             NUITKA_FLAGS+=( "--include-data-file=$ICON_ABS=ARIana_logo.png" )
           else
             echo "NOTE: ARIana_logo.png not found; skipping include."
