@@ -52,9 +52,9 @@ jobs:
           $flags = @(
             '--standalone',
             '--windows-console-mode=force',
-            "--include-data-dir=Source\Code/Patients=Patients",
-            "--include-data-file=Source\Code/ARIana_logo.png=ARIana_logo.png",
-            '--windows-icon-from-ico=Source\Code/ARIana_logo.ico',
+            '--include-data-dir="Source\Code/Patients"=Patients',
+            '--include-data-file="Source\Code/ARIana_logo.png"=ARIana_logo.png',
+            '--windows-icon-from-ico="Source\Code/ARIana_logo.ico"',
             '--include-module=tkinter',
             '--include-module=PIL',
             '--include-module=matplotlib',
