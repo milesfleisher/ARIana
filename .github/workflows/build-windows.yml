@@ -61,7 +61,11 @@ jobs:
             '--enable-plugin=tk-inter',
             '--nofollow-import-to=tests',
             '--clang',
+            '--enable-plugin=tk-inter',
+            '--enable-plugin=matplotlib',
+            '--enable-plugin=numpy',
             '--output-dir=build_windows',
+            '--windows-console-mode=force',
             '--assume-yes-for-downloads'   # <-- auto-accept tool downloads
           )
           if (Test-Path "Source Code/ARIana.ico") {
