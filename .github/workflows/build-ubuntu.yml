@@ -136,13 +136,13 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ARIana-linux
+          name: ARIana-linux-Installer-tarball
           path: ARIana-linux.tar.gz
           if-no-files-found: error
 
       - name: Upload .dist folder (optional)
         uses: actions/upload-artifact@v4
         with:
-          name: ARIana-linux-dist
+          name: ARIana-linux-Installer-no-tarball
           path: build_linux/ARIana.dist/
 
