@@ -132,7 +132,7 @@ jobs:
             ls -la "$GITHUB_WORKSPACE" || true
             exit 1
           fi
-          tar -czvf "$GITHUB_WORKSPACE/ARIana-linux.tar.gz" -C "$GITHUB_WORKSPACE" "build_linux"
+          tar -czvf "$GITHUB_WORKSPACE/ARIana-linux.tar.gz" -C "$GITHUB_WORKSPACE/build_linux" "$(basename "$APP_MAIN_ABS" .py).dist"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
