@@ -1,22 +1,21 @@
-name: Compile All Three
+name: Compile All 3
 
 on:
-  workflow_dispatch:       # manual “Run workflow” button
-  # push:
-  #   branches: [ main ]   # (optional) run on push to main too
+  workflow_dispatch:       # Manual “Run workflow” button
 
 jobs:
-  run-build:
+  build-macos:
     uses: ./.github/workflows/macos-build.yml
-    permissions: inherit    # pass the caller's permissions
-    secrets: inherit        # pass all repo/org secrets
+    permissions: inherit
+    secrets: inherit
 
-  run-test:
+  build-ubuntu:
     uses: ./.github/workflows/build-ubuntu.yml
     permissions: inherit
     secrets: inherit
 
-  run-deploy:
+  build-windows:
     uses: ./.github/workflows/build-windows.yml
     permissions: inherit
     secrets: inherit
+  
