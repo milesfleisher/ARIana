@@ -7,21 +7,139 @@ import random
 import threading
 import time
 import queue # Added for thread-safe communication
-import serial # Added for serial communication
-import serial.tools.list_ports #for port scanning
-from PIL import Image, ImageTk
-import numpy as np
+import serial  # type: ignore #type# Added for serial communication
+import serial.tools.list_ports # type: ignore #for port scanning
+from PIL import Image, ImageTk # type: ignore #type
+import numpy as np # type: ignore #type
 import textwrap
-from scipy.ndimage import gaussian_filter1d
-from scipy.interpolate import interp1d
-from matplotlib.figure import Figure 
 
-
-
-import matplotlib
+import sys
+from pathlib import Path
+#some plotting libraries
+import matplotlib # type: ignore #type
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg
+import matplotlib.pyplot as plt # type: ignore #type
+from matplotlib.backends.backend_agg import FigureCanvasAgg # type: ignore #type
+from scipy.ndimage import gaussian_filter1d# type: ignore #type
+from scipy.interpolate import interp1d# type: ignore #type
+from matplotlib.figure import Figure # type: ignore #type
+#libraries for reading dynamic disclaimer .txt file
+import sys
+from pathlib import Path
+from tkinter import messagebox
+
+DEFAULT_PREOP_CHECKLIST = (
+    "1. Pediatric surgery has been consulted and is aware of the patient.\n"
+    "2. Abdominal radiographs (AP and Cross-table lateral or decubitus) demonstrate no free air.\n"
+    "3. No peritoneal signs are present.\n"
+    "4. Patient is hemodynamically stable.\n"
+    "5. IV access has been secured.\n"
+    "6. Parents or guardians have consented to the procedure (preferable).\n"
+    "7. Large-bore angiocath available at bedside.\n"
+    "8. Provider in the room who will be primarily responsible for the patient (nurse or doctor).\n"
+    "9. Patient's vital signs are being monitored.\n"
+    "10. What catheter will be used?\n"
+    "11. Will you sedate the patient?\n"
+)
+APP_NAME = "ARIana"
+PREOP_FILENAME = "preop_checklist.txt"
+
+
+def _checklist_path() -> Path:
+    return _data_root() / PREOP_FILENAME
+
+def _data_root() -> Path:
+    prog_dir = Path(sys.argv[0]).resolve().parent
+    # If we're inside a macOS .app bundle, prefer the Resources dir
+    if prog_dir.name == "MacOS" and prog_dir.parent.name == "Contents":
+        res = prog_dir.parent / "Resources"
+        if res.exists():
+            return res
+    return prog_dir
+
+def _app_dir() -> Path:
+    # "Folder the .py file is in"
+    try:
+        return Path(__file__).resolve().parent
+    except NameError:
+        # Fallback if __file__ is not set
+        return Path(sys.argv[0]).resolve().parent
+
+def _checklist_file_path() -> Path:
+    return _app_dir() / PREOP_FILENAME
+
+def _load_preop_checklist_text() -> str:
+    """
+    STRICT: Only read preop_checklist.txt from the same folder as this .py.
+    Never search other places. Never use Application Support.
+    If missing, try to create it right here; if that fails, use built-in default.
+    """
+    p = _checklist_file_path()
+    print(f"[DEBUG] Checklist strict path: {p}")
+    if not p.exists():
+        # Create one here so it's editable in-place with the program files.
+        try:
+            p.write_text(DEFAULT_PREOP_CHECKLIST, encoding="utf-8")
+            import tkinter.messagebox as mb
+            mb.showwarning(
+                "Checklist Created",
+                f"Created a default '{PREOP_FILENAME}' at:\n\n{p}\n\nEdit this file to customize the checklist."
+            )
+            return DEFAULT_PREOP_CHECKLIST
+        except Exception as e:
+            import tkinter.messagebox as mb
+            mb.showwarning(
+                "Checklist Missing",
+                f"Could not create '{PREOP_FILENAME}' in:\n{p.parent}\n\n"
+                f"Reason: {e}\n\nUsing built-in default for this run."
+            )
+            return DEFAULT_PREOP_CHECKLIST
+
+    try:
+        return p.read_text(encoding="utf-8")
+    except Exception as e:
+        import tkinter.messagebox as mb
+        mb.showerror("Checklist Error", f"Failed to read '{p}':\n{e}\n\nUsing built-in default.")
+        return DEFAULT_PREOP_CHECKLIST
+
+
+def _load_preop_checklist_text():
+    p = _checklist_path()
+    print(f"[DEBUG] Checklist path: {p}")
+    try:
+        txt = p.read_text(encoding="utf-8")
+        print(f"[DEBUG] Loaded checklist ({len(txt)} bytes)")
+        return txt
+    except FileNotFoundError:
+        # Create a default in-place
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(DEFAULT_PREOP_CHECKLIST, encoding="utf-8")
+            messagebox.showwarning(
+                "Checklist Created",
+                f"Could not find '{PREOP_FILENAME}'. A default file has been created at:\n\n"
+                f"{p}\n\nEdit this file to customize the Pre-Procedure Checklist."
+            )
+        except Exception as e:
+            messagebox.showwarning(
+                "Checklist Missing",
+                f"Could not find or create '{PREOP_FILENAME}'. Using a built-in default for this run.\n\nReason: {e}"
+            )
+        return DEFAULT_PREOP_CHECKLIST
+    except UnicodeDecodeError as e:
+        messagebox.showerror(
+            "Checklist Encoding Error",
+            f"'{PREOP_FILENAME}' is not UTF-8. Please re-save it as UTF-8.\n\n{e}"
+        )
+        return DEFAULT_PREOP_CHECKLIST
+    except Exception as e:
+        messagebox.showerror(
+            "Checklist Error",
+            f"Problem reading '{p}':\n{e}\nUsing built-in default for now."
+        )
+        return DEFAULT_PREOP_CHECKLIST
+
+
 
 
 # Manometer Constants (extracted from read_hd700.py)
@@ -200,6 +318,8 @@ class CaseLoader:
     
     def __init__(self, base_path="Patients"):
         self.base_path = base_path
+        self.base_path = str(_data_root() / "Patients") if base_path is None else base_path
+
     
     def load_case_list(self):
         """Load the list of available cases from the directory structure"""
@@ -867,10 +987,9 @@ class ARIanaApp:
         self.check_manometer_queue()
 
 
-    def create_widgets(self):
+    def create_widgets(self):        
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)        
         self.disclaimer_frame = ttk.Frame(self.notebook)
         self.startup_frame = ttk.Frame(self.notebook)
         self.pre_operation_frame = ttk.Frame(self.notebook) # New frame
@@ -893,6 +1012,11 @@ class ARIanaApp:
         # Tab-aware spacebar behavior: Simulation = capture; others = do nothing
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
+        # Disable tab switching by unbinding events
+        self.notebook.bind('<Button-1>', lambda event: 'break') # Prevent mouse clicks on tabs
+        self.notebook.bind('<B1-Motion>', lambda event: 'break') # Prevent dragging tabs
+        self.notebook.bind('<ButtonRelease-1>', lambda event: 'break') # Prevent releasing mouse on tabs
+
         self.create_disclaimer_screen()
         self.create_startup_screen()
         self.create_pre_operation_screen() # New call
@@ -902,23 +1026,32 @@ class ARIanaApp:
         # Apply initial spacebar behavior for the initially selected tab
         self._on_tab_changed()
 
-        # Prevent spacebar from "clicking" any buttons anywhere
-        self.root.bind_class("TButton", "<space>", lambda e: "break")
-        self.root.bind_class("TCheckbutton", "<space>", lambda e: "break")
-        self.root.bind_class("Button", "<space>", lambda e: "break")  # if you use tk.Button anywhere
-
     def _on_tab_changed(self, event=None):
-        """Spacebar behavior: only active in Simulation."""
+        """Only allow spacebar to trigger fluoroscopy on the Simulation tab."""
+        # Clear any previous global binding
         try:
             self.root.unbind_all("<space>")
         except Exception:
             pass
+
         current_tab = self.notebook.tab(self.notebook.select(), "text")
+
         if current_tab == "Simulation":
+            # Let the spacebar reach our global handler even if a Button has focus
+            for cls in ("TButton", "TCheckbutton", "Button"):
+                try:
+                    self.root.unbind_class(cls, "<space>")
+                except Exception:
+                    pass
+            # Bind space globally to take a fluoro image; return "break" in handler already stops default
             self.root.bind_all("<space>", self.take_fluoro_image)
         else:
-            # Swallow the spacebar everywhere else (e.g., Pre-Operation)
+            # On non-Simulation tabs: swallow space globally
             self.root.bind_all("<space>", lambda e: "break")
+            # And explicitly prevent Buttons/Checks from activating on space
+            for cls in ("TButton", "TCheckbutton", "Button"):
+                self.root.bind_class(cls, "<space>", lambda e: "break")
+
 
     def create_pre_operation_screen(self):
         main_frame = ttk.Frame(self.pre_operation_frame)
@@ -941,7 +1074,7 @@ class ARIanaApp:
         ttk.Label(left_panel, text="Pre-Procedure Checklist",
                 font=("Arial", 12, "bold")).pack(anchor="w", pady=(0, 4))
 
-        # ---- Scrollable checklist ----
+        #Scrollable checklist
         checklist_frame = ttk.Frame(left_panel)
         checklist_frame.pack(fill="both", expand=True)
 
@@ -968,23 +1101,29 @@ class ARIanaApp:
 
         # And update column weights so the text expands, not the scrollbar
         checklist_frame.grid_columnconfigure(1, weight=1)
+        #use dynamic checklist from .txt debug
+        #removed checklist order
+        #print("[DEBUG] Checklist search order:\n  " + "\n  ".join(str(d / PREOP_FILENAME) for d in _program_dirs()))
 
 
-        checklist = (
-            "1. Pediatric surgery has been consulted and is aware of the patient.\n"
-            "2. Abdominal radiographs (AP and Cross-table lateral or decubitus) demonstrate no free air.\n"
-            "3. No peritoneal signs are present.\n"
-            "4. Patient is hemodynamically stable.\n"
-            "5. IV access has been secured.\n"
-            "6. Parents or guardians have consented to the procedure (preferable).\n"
-            "7. Large-bore angiocath available at bedside.\n"
-            "8. Provider in the room who will be primarily responsible for the patient (nurse or doctor).\n"
-            "9. Patient's vital signs are being monitored.\n"
-            "10. What catheter will be used?\n"
-            "11. Will you sedate the patient?\n"
-        )
+
+        #checklist = (
+        #   "1. Pediatric surgery has been consulted and is aware of the patient.\n"
+         #   "2. Abdominal radiographs (AP and Cross-table lateral or decubitus) demonstrate no free air.\n"
+          #  "3. No peritoneal signs are present.\n"
+           # "4. Patient is hemodynamically stable.\n"
+          #  "5. IV access has been secured.\n"
+          #  "6. Parents or guardians have consented to the procedure (preferable).\n"
+          #  "7. Large-bore angiocath available at bedside.\n"
+          #  "8. Provider in the room who will be primarily responsible for the patient (nurse or doctor).\n"
+          #  "9. Patient's vital signs are being monitored.\n"
+          #  "10. What catheter will be used?\n"
+          #  "11. Will you sedate the patient?\n"
+        #)
+        #use dynamic checklist from .txt
+        checklist = _load_preop_checklist_text()
         self.preop_checklist_text.insert("1.0", checklist)
-        self.preop_checklist_text.configure(state="disabled")  # keep it read-only
+        self.preop_checklist_text.configure(state="disabled")
 
         # RIGHT panel: images (expands to take remaining space)
         right_panel = ttk.Frame(main_frame)
@@ -997,7 +1136,6 @@ class ARIanaApp:
 
     def on_closing(self):
         """Handle window close event and ensure proper cleanup"""
-        #print("Shutting down manometer connection...")
         self.manometer_thread.stop()
         # Give the thread a moment to clean up
         if self.manometer_thread.is_alive():
@@ -1006,6 +1144,15 @@ class ARIanaApp:
 
     def show_pre_operation(self):
         self.notebook.select(self.pre_operation_frame)
+        # Reload checklist each time Pre-Operation tab is shown
+        if hasattr(self, "preop_checklist_text"):
+            txt = _load_preop_checklist_text()
+            self.preop_checklist_text.configure(state="normal")
+            self.preop_checklist_text.delete("1.0", "end")
+            self.preop_checklist_text.insert("1.0", txt)
+            self.preop_checklist_text.configure(state="disabled")
+
+        self._on_tab_changed() 
         if self.current_case:
             pre_images = self.current_case.get("images", {}).get("preprocedure", [])
             self.pre_op_image_scroller.set_images(pre_images)
@@ -1030,11 +1177,11 @@ class ARIanaApp:
 
     def create_disclaimer_screen(self):
         import tkinter as tk
-        from tkinter import ttk
+        from tkinter import ttk, messagebox
 
         #  Centered group: title + body (centered as a unit)
         self._disc_center = ttk.Frame(self.disclaimer_frame)
-        self._disc_center.pack(expand=True)  # centers vertically as one block
+        self._disc_center.pack(expand=True)
 
         self.disclaimer_title = ttk.Label(
             self._disc_center,
@@ -1043,8 +1190,11 @@ class ARIanaApp:
             justify="center",
             anchor="center",
         )
-        self.disclaimer_title.pack(pady=(0, 2))  # tiny gap under title
+        self.disclaimer_title.pack(pady=(0, 2))
 
+
+
+        # First run: create a file with your current default text
         disclaimer_text = (
             "This device is designed to help a trained pediatric radiologist teach a\n"
             "trainee the basics of reducing an intussusception with an air enema. It is\n"
@@ -1059,6 +1209,8 @@ class ARIanaApp:
             "If you agree with the above disclaimer, click \"I Agree\" to use this\n"
             "program."
         )
+
+        # Build the label with the text we loaded
         self.disclaimer_label = ttk.Label(
             self._disc_center,
             text=disclaimer_text,
@@ -1067,18 +1219,17 @@ class ARIanaApp:
             justify="center",
             anchor="center",
         )
-        # NOTE: no expand=True here -> prevents big vertical gap
         self.disclaimer_label.pack(padx=24, pady=(0, 0), fill=tk.X)
 
-        #  Buttons pinned to bottom 
+        # Buttons pinned to bottom (keep your existing code)
         self.disclaimer_button_frame = ttk.Frame(self.disclaimer_frame)
         self.disclaimer_button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
         ttk.Button(self.disclaimer_button_frame, text="I Agree", command=self.show_startup).pack(side=tk.LEFT, padx=10)
         ttk.Button(self.disclaimer_button_frame, text="Decline", command=self.root.quit).pack(side=tk.LEFT, padx=10)
 
-        # Bind resize (add='+' so we don't clobber other Configure handlers) and apply once
         self.disclaimer_frame.bind("<Configure>", self._resize_disclaimer, add="+")
-        self._resize_disclaimer()  # initial sizing
+        self._resize_disclaimer()
+
 
 
     def _resize_disclaimer(self, event=None):
@@ -1632,8 +1783,8 @@ class ARIanaApp:
         pressure_interp = interp1d(times, pressures, kind='linear', fill_value="extrapolate")
         stage_interp = interp1d(times, stages, kind='previous', fill_value="extrapolate")
 
-        smooth_pressure = gaussian_filter1d(pressure_interp(dense_time), sigma=2)
-        smooth_stage = gaussian_filter1d(stage_interp(dense_time), sigma=1.5)
+        smooth_pressure = gaussian_filter1d(pressure_interp(dense_time), sigma=1.5)
+        smooth_stage = gaussian_filter1d(stage_interp(dense_time), sigma=0.75)
 
         # --- ICON FIX: Use Figure object directly, not pyplot ---
         # This prevents Matplotlib from interfering with the Tkinter window manager.
@@ -1667,6 +1818,7 @@ class ARIanaApp:
     def show_startup(self):
         self.load_cases_into_tree()
         self.notebook.select(self.startup_frame)
+        self._on_tab_changed() 
     
     def show_simulation(self):
         self.pressure_var.set(0.0)
@@ -1678,6 +1830,7 @@ class ARIanaApp:
         self.warning_label.config(text="")
 
         self.notebook.select(self.simulation_frame)
+        self._on_tab_changed() 
         
         # Reset all visibility checkboxes to checked and update labels
         for name in self.visibility_vars.keys():
@@ -1708,8 +1861,14 @@ class ARIanaApp:
         # Stop the engine
         self.simulator.stop_simulation()
 
-        # ollect data once
+        # collect data once
         performance_data = self.simulator.get_performance_data()
+
+        # If user ends while perforation is active but auto-end hasn't fired yet,
+        # force a clear outcome for the Results header.
+        if outcome_override is None and self.simulator.is_perforated and self.simulator.perforation_timer_active:
+            outcome_override = "Perforation Occurred And Was Recognized"
+
         if not performance_data:
             # Nothing to show; still navigate to Results with a minimal summary
             self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_override or self.simulator.last_outcome}")
@@ -1726,10 +1885,12 @@ class ARIanaApp:
             self.current_case and
             self.current_case.get("parameters", {}).get("contraindication_start", 0) == 1
         )
+
         called_surgery_in_preop = (
             outcome_override == "Patient Sent to Surgery"
             and getattr(self, "called_surgery_from_preop", False)
         )
+
 
         if is_contra_case or called_surgery_in_preop:
             # No plot; centered message
@@ -1777,6 +1938,7 @@ class ARIanaApp:
 
     def show_results(self):
         self.notebook.select(self.results_frame)
+        self._on_tab_changed() 
 
     def run(self):
         try:

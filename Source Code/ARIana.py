@@ -9,7 +9,6 @@ import os
 sys.dont_write_bytecode = True
 
 # Add necessary imports for manometer integration
-import serial
 import threading
 import queue
 
