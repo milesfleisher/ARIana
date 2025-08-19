@@ -101,15 +101,11 @@ jobs:
             --include-module=scipy
             --include-module=serial
             --enable-plugin=tk-inter
+            "--include-data-dir=${{ steps.locate.outputs.APP_DIR_ABS }}/Patients=Patients"
+            "--include-data-file=${{ steps.locate.outputs.APP_DIR_ABS }}/preop_checklist.txt=preop_checklist.txt"
             "--output-dir=$OUT_DIR"
             "--macos-sign-identity=-"
           )
-
-          if [[ -n "$DATA_DIR_ABS" ]]; then
-            NUITKA_FLAGS+=( "--include-data-dir=$DATA_DIR_ABS=Patients" )
-          else
-            echo "NOTE: Patients/ not found; skipping include."
-          fi
 
           if [[ -n "$ICON_ABS" ]]; then
             NUITKA_FLAGS+=( "--include-data-file=$ICON_ABS=ARIana_logo.png" )

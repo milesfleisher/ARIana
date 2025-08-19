@@ -1,0 +1,23 @@
+name: Compile All Three
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+  build-macos:
+    needs: prepare
+    uses: ./.github/workflows/build-mac.yml
+
+  build-ubuntu:
+    needs: prepare
+    uses: ./.github/workflows/build-ubuntu.yml
+
+  build-windows:
+    needs: prepare
+    uses: ./.github/workflows/build-windows.yml
