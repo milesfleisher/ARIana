@@ -122,12 +122,16 @@ jobs:
         run: |
           set -eo pipefail
           OUT_DIR="$GITHUB_WORKSPACE/build_linux"
-          if [[ ! -d "$OUT_DIR" ]]; then
-            echo "ERROR: $OUT_DIR not found; build likely failed."
-            ls -la "$GITHUB_WORKSPACE" || true
+          APP_MAIN_ABS="${{ steps.locate.outputs.APP_MAIN_ABS }}"
+          APP_NAME="$(basename "$APP_MAIN_ABS" .py)"
+      
+          if [[ ! -d "$OUT_DIR/$APP_NAME.dist" ]]; then
+            echo "ERROR: $OUT_DIR/$APP_NAME.dist not found."
+            ls -la "$OUT_DIR" || true
             exit 1
           fi
-          tar -czvf "$GITHUB_WORKSPACE/ARIana-linux.tar.gz" -C "$GITHUB_WORKSPACE/build_linux" "$(basename "$APP_MAIN_ABS" .py).dist"
+      
+          tar -czvf "$GITHUB_WORKSPACE/ARIana-linux.tar.gz" -C "$OUT_DIR" "$APP_NAME.dist"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
