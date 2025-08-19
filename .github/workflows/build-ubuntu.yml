@@ -101,6 +101,7 @@ jobs:
             --include-module=numpy
             --include-module=scipy
             --include-module=serial
+            --include-data-file=preop_checklist.txt=preop_checklist.txt
             "--output-dir=$OUT_DIR"
           )
 
