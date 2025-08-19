@@ -1,21 +1,23 @@
 name: Compile All Three
 
 on:
-  workflow_dispatch:       # Manual “Run workflow” button
+  workflow_dispatch:
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
   build-macos:
-    uses: milesfleisher/ARIana/.github/workflows/build-mac.yml
-    permissions: inherit
-    secrets: inherit
+    needs: prepare
+    uses: ./.github/workflows/build-mac.yml
 
   build-ubuntu:
-    uses: milesfleisher/ARIana/.github/workflows/build-ubuntu.yml
-    permissions: inherit
-    secrets: inherit
+    needs: prepare
+    uses: ./.github/workflows/build-ubuntu.yml
 
   build-windows:
-    uses: milesfleisher/ARIana/.github/workflows/build-windows.yml
-    permissions: inherit
-    secrets: inherit
-  
+    needs: prepare
+    uses: ./.github/workflows/build-windows.yml
