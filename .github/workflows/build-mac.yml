@@ -101,7 +101,7 @@ jobs:
             --include-module=scipy
             --include-module=serial
             --enable-plugin=tk-inter
-            --include-data-file=preop_checklist.txt=preop_checklist.txt
+            --include-data-file="${{ steps.locate.outputs.APP_DIR_ABS }}/preop_checklist.txt=preop_checklist.txt"
             "--output-dir=$OUT_DIR"
             "--macos-sign-identity=-"
           )
