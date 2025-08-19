@@ -25,7 +25,6 @@ from scipy.interpolate import interp1d#type: ignore #type
 from matplotlib.figure import Figure #type: ignore #type
 #library for reading dynamic disclaimer .txt fil
 
-
 #constants
 DEFAULT_PREOP_CHECKLIST = (
     "1. Pediatric surgery has been consulted and is aware of the patient.\n"
@@ -1066,7 +1065,6 @@ class ARIanaApp:
         self.pre_op_image_scroller = PreOpImageScroller(right_panel)
         self.pre_op_image_scroller.pack(fill="both", expand=True)
 
-
     def on_closing(self):
         """Handle window close event and ensure proper cleanup"""
         self.manometer_thread.stop()
@@ -1122,9 +1120,6 @@ class ARIanaApp:
         )
         self.disclaimer_title.pack(pady=(0, 2))
 
-
-
-        #First run: create a file with your current default text
         disclaimer_text = (
             "This device is designed to help a trained pediatric radiologist teach a\n"
             "trainee the basics of reducing an intussusception with an air enema. It is\n"
@@ -1159,8 +1154,6 @@ class ARIanaApp:
 
         self.disclaimer_frame.bind("<Configure>", self._resize_disclaimer, add="+")
         self._resize_disclaimer()
-
-
 
     def _resize_disclaimer(self, event=None):
         """Responsive sizing for disclaimer without introducing vertical gaps."""
@@ -1348,8 +1341,7 @@ class ARIanaApp:
         pad_y = 21  #a little breathing room
         new_row_h = max(24, max_lines * line_space + pad_y)
         ttk.Style().configure("Treeview", rowheight=new_row_h)
-
-    
+  
     def _resize_tree_columns(self, event=None):
         #Compute available width inside the Treeview (minus scrollbar/padding)
         tree = self.case_list_tree
@@ -1738,7 +1730,6 @@ class ARIanaApp:
         #Show the generated plot
         self.show_plot_image()
 
-  
     def show_disclaimer(self):
         self.notebook.select(self.disclaimer_frame)
     
