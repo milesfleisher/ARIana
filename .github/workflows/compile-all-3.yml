@@ -1,4 +1,4 @@
-name: Compile All Files
+name: Compile All 3
 
 on:
   workflow_dispatch:       # manual “Run workflow” button
