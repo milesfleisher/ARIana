@@ -106,12 +106,6 @@ jobs:
             "--output-dir=$OUT_DIR"
           )
 
-          if [[ -n "$DATA_DIR_ABS" ]]; then
-            NUITKA_FLAGS+=( "--include-data-dir=$DATA_DIR_ABS=Patients" )
-          else
-            echo "NOTE: Patients/ not found; skipping include."
-          fi
-
           if [[ -n "$ICON_ABS" ]]; then
             NUITKA_FLAGS+=( "--include-data-file=$ICON_ABS=ARIana_logo.png" )
           else
