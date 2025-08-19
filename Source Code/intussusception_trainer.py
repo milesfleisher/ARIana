@@ -24,7 +24,7 @@ from scipy.ndimage import gaussian_filter1d#type: ignore #type
 from scipy.interpolate import interp1d#type: ignore #type
 from matplotlib.figure import Figure #type: ignore #type
 #library for reading dynamic disclaimer .txt fil
-from tkinter import messagebox
+
 
 #constants
 DEFAULT_PREOP_CHECKLIST = (
@@ -1109,9 +1109,6 @@ class ARIanaApp:
         messagebox.showinfo("Vitals and Medical History", wrapped_text)
 
     def create_disclaimer_screen(self):
-        import tkinter as tk
-        from tkinter import ttk, messagebox
-
         #Centered group: title + body (centered as a unit)
         self._disc_center = ttk.Frame(self.disclaimer_frame)
         self._disc_center.pack(expand=True)
