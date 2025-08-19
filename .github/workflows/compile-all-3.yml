@@ -5,17 +5,17 @@ on:
 
 jobs:
   build-macos:
-    uses: ARIana/.github/workflows/build-mac.yml
+    uses: milesfleisher/ARIana/.github/workflows/build-mac.yml
     permissions: inherit
     secrets: inherit
 
   build-ubuntu:
-    uses: .ARIana/.github/workflows/build-ubuntu.yml
+    uses: milesfleisher/ARIana/.github/workflows/build-ubuntu.yml
     permissions: inherit
     secrets: inherit
 
   build-windows:
-    uses: .ARIana/.github/workflows/build-windows.yml
+    uses: milesfleisher/ARIana/.github/workflows/build-windows.yml
     permissions: inherit
     secrets: inherit
   
