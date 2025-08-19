@@ -6,28 +6,27 @@ import os
 import random
 import threading
 import time
-import queue # Added for thread-safe communication
-import serial  # type: ignore #type# Added for serial communication
-import serial.tools.list_ports # type: ignore #for port scanning
-from PIL import Image, ImageTk # type: ignore #type
-import numpy as np # type: ignore #type
+import queue #Added for thread-safe communication
+import serial  # for serial communication       #type: ignore #type 
+import serial.tools.list_ports #type: ignore #for port scanning
+from PIL import Image, ImageTk #type: ignore #type
+import numpy as np #type: ignore #type
 import textwrap
 
 import sys
 from pathlib import Path
 #some plotting libraries
-import matplotlib # type: ignore #type
+import matplotlib #type: ignore #type
 matplotlib.use("TkAgg")
-import matplotlib.pyplot as plt # type: ignore #type
-from matplotlib.backends.backend_agg import FigureCanvasAgg # type: ignore #type
-from scipy.ndimage import gaussian_filter1d# type: ignore #type
-from scipy.interpolate import interp1d# type: ignore #type
-from matplotlib.figure import Figure # type: ignore #type
-#libraries for reading dynamic disclaimer .txt file
-import sys
-from pathlib import Path
+import matplotlib.pyplot as plt #type: ignore #type
+from matplotlib.backends.backend_agg import FigureCanvasAgg #type: ignore #type
+from scipy.ndimage import gaussian_filter1d#type: ignore #type
+from scipy.interpolate import interp1d#type: ignore #type
+from matplotlib.figure import Figure #type: ignore #type
+#library for reading dynamic disclaimer .txt fil
 from tkinter import messagebox
 
+#constants
 DEFAULT_PREOP_CHECKLIST = (
     "1. Pediatric surgery has been consulted and is aware of the patient.\n"
     "2. Abdominal radiographs (AP and Cross-table lateral or decubitus) demonstrate no free air.\n"
@@ -41,16 +40,46 @@ DEFAULT_PREOP_CHECKLIST = (
     "10. What catheter will be used?\n"
     "11. Will you sedate the patient?\n"
 )
-APP_NAME = "ARIana"
+
 PREOP_FILENAME = "preop_checklist.txt"
 
+#Manometer Constants (extracted from read_hd700.py)
+UNIT_CONVERSIONS_TO_MMHG = {
+    0x00: 750.062,  #1 bar = 750.062 mmHg
+    0x01: 3.23218,  #1 oz/in^2 = 3.23218 mmHg (Corrected)
+    0x02: 51.7149,  #1 psi = 51.7149 mmHg
+    0x03: 25.4,     #1 inHg = 25.4 mmHg
+    0x04: 0.750062, #1 mbar = 0.750062 mmHg
+    0x05: 1.0,      #1 mmHg = 1 mmHg (no conversion needed)
+    0x06: 7.50062,  #1 kPa = 7.50062 mmHg
+    0x07: 735.559,  #1 kg/cm^2 = 735.559 mmHg
+    0x08: 1.86832,  #1 inH2O = 1.86832 mmHg
+    0x09: 22.4199,  #1 ftH2O = 22.4199 mmHg
+    0x0a: 0.735559, #1 cmH2O = 0.735559 mmHg
+}
+
+UNIT_NAMES = {
+    0x00: "bar",
+    0x01: "oz/in²",
+    0x02: "psi",
+    0x03: "inHg",
+    0x04: "mbar",
+    0x05: "mmHg",
+    0x06: "kPa",
+    0x07: "kg/cm²",
+    0x08: "inH₂O",
+    0x09: "ftH₂O",
+    0x0a: "cmH₂O",
+}
+
+HANDSHAKE_CMD = b'\x55\xaa\x01'
 
 def _checklist_path() -> Path:
     return _data_root() / PREOP_FILENAME
 
 def _data_root() -> Path:
     prog_dir = Path(sys.argv[0]).resolve().parent
-    # If we're inside a macOS .app bundle, prefer the Resources dir
+    #If we're inside a macOS .app bundle, prefer the Resources dir
     if prog_dir.name == "MacOS" and prog_dir.parent.name == "Contents":
         res = prog_dir.parent / "Resources"
         if res.exists():
@@ -58,50 +87,15 @@ def _data_root() -> Path:
     return prog_dir
 
 def _app_dir() -> Path:
-    # "Folder the .py file is in"
+    #"Folder the .py file is in"
     try:
         return Path(__file__).resolve().parent
     except NameError:
-        # Fallback if __file__ is not set
+        #Fallback if __file__ is not set
         return Path(sys.argv[0]).resolve().parent
 
 def _checklist_file_path() -> Path:
     return _app_dir() / PREOP_FILENAME
-
-def _load_preop_checklist_text() -> str:
-    """
-    STRICT: Only read preop_checklist.txt from the same folder as this .py.
-    Never search other places. Never use Application Support.
-    If missing, try to create it right here; if that fails, use built-in default.
-    """
-    p = _checklist_file_path()
-    print(f"[DEBUG] Checklist strict path: {p}")
-    if not p.exists():
-        # Create one here so it's editable in-place with the program files.
-        try:
-            p.write_text(DEFAULT_PREOP_CHECKLIST, encoding="utf-8")
-            import tkinter.messagebox as mb
-            mb.showwarning(
-                "Checklist Created",
-                f"Created a default '{PREOP_FILENAME}' at:\n\n{p}\n\nEdit this file to customize the checklist."
-            )
-            return DEFAULT_PREOP_CHECKLIST
-        except Exception as e:
-            import tkinter.messagebox as mb
-            mb.showwarning(
-                "Checklist Missing",
-                f"Could not create '{PREOP_FILENAME}' in:\n{p.parent}\n\n"
-                f"Reason: {e}\n\nUsing built-in default for this run."
-            )
-            return DEFAULT_PREOP_CHECKLIST
-
-    try:
-        return p.read_text(encoding="utf-8")
-    except Exception as e:
-        import tkinter.messagebox as mb
-        mb.showerror("Checklist Error", f"Failed to read '{p}':\n{e}\n\nUsing built-in default.")
-        return DEFAULT_PREOP_CHECKLIST
-
 
 def _load_preop_checklist_text():
     p = _checklist_path()
@@ -111,7 +105,7 @@ def _load_preop_checklist_text():
         print(f"[DEBUG] Loaded checklist ({len(txt)} bytes)")
         return txt
     except FileNotFoundError:
-        # Create a default in-place
+        #Create a default in-place
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(DEFAULT_PREOP_CHECKLIST, encoding="utf-8")
@@ -138,40 +132,6 @@ def _load_preop_checklist_text():
             f"Problem reading '{p}':\n{e}\nUsing built-in default for now."
         )
         return DEFAULT_PREOP_CHECKLIST
-
-
-
-
-# Manometer Constants (extracted from read_hd700.py)
-UNIT_CONVERSIONS_TO_MMHG = {
-    0x00: 750.062,  # 1 bar = 750.062 mmHg
-    0x01: 3.23218,  # 1 oz/in^2 = 3.23218 mmHg (Corrected)
-    0x02: 51.7149,  # 1 psi = 51.7149 mmHg
-    0x03: 25.4,     # 1 inHg = 25.4 mmHg
-    0x04: 0.750062, # 1 mbar = 0.750062 mmHg
-    0x05: 1.0,      # 1 mmHg = 1 mmHg (no conversion needed)
-    0x06: 7.50062,  # 1 kPa = 7.50062 mmHg
-    0x07: 735.559,  # 1 kg/cm^2 = 735.559 mmHg
-    0x08: 1.86832,  # 1 inH2O = 1.86832 mmHg
-    0x09: 22.4199,  # 1 ftH2O = 22.4199 mmHg
-    0x0a: 0.735559, # 1 cmH2O = 0.735559 mmHg
-}
-
-UNIT_NAMES = {
-    0x00: "bar",
-    0x01: "oz/in²",
-    0x02: "psi",
-    0x03: "inHg",
-    0x04: "mbar",
-    0x05: "mmHg",
-    0x06: "kPa",
-    0x07: "kg/cm²",
-    0x08: "inH₂O",
-    0x09: "ftH₂O",
-    0x0a: "cmH₂O",
-}
-
-HANDSHAKE_CMD = b'\x55\xaa\x01'
 
 def parse_manometer_packet(packet):
     """Decode a 10-byte pressure packet and convert to mmHg without scaling factors."""
@@ -220,22 +180,22 @@ class ManometerThread(threading.Thread):
             ):
                 matching_ports.append(port.device)
 
-        # Prefer /dev/cu.usbserial-0001 if available
+        #Prefer /dev/cu.usbserial-0001 if available
         for dev in matching_ports:
             if "usbserial-0001" in dev:
                 return dev
 
-        # Otherwise just return the first match
+        #Otherwise just return the first match
         return matching_ports[0] if matching_ports else None
 
     def run(self):
         while self._running:
-            # Find port on each connection attempt
+            #Find port on each connection attempt
             port = self.find_cp2102_port()
             
             if not port:
                 self.data_queue.put(("status", "Disconnected"))
-                time.sleep(0.1)  # Very fast retry when no port found
+                time.sleep(0.1)  #Very fast retry when no port found
                 continue
                 
             if self.ser is None or not self.ser.is_open:
@@ -246,21 +206,21 @@ class ManometerThread(threading.Thread):
                     self._stream_data()
                 else:
                     self.data_queue.put(("status", "Disconnected"))
-                    time.sleep(0.1) # Very fast retry
+                    time.sleep(0.1) #Very fast retry
             else:
                 self.data_queue.put(("status", "Connected"))
                 self._stream_data()
 
-    def _connect_to_device(self, port):
+    def _connect_to_device(self, port): 
         try:
-            ser = serial.Serial(port, self.baudrate, timeout=0.1)  # Very short timeout
-            time.sleep(0.05)  # Minimal settling time
+            ser = serial.Serial(port, self.baudrate, timeout=0.1)  #Very short timeout
+            time.sleep(0.05)  #Minimal settling time
             ser.reset_input_buffer()
             ser.reset_output_buffer()
             
-            # Quick handshake
+            #Quick handshake
             ser.write(HANDSHAKE_CMD)
-            time.sleep(0.05)  # Minimal handshake wait
+            time.sleep(0.05)  #Minimal handshake wait
             response = ser.read(32)
             if b'\xAA\x56' in response:
                 return ser
@@ -352,7 +312,7 @@ class CaseLoader:
                     except Exception as e:
                         print(f"Error loading case {item}: {e}")
         
-        # Alphabetize patient names
+        #Alphabetize patient names
         cases.sort(key=lambda x: x["name"].lower())
         return cases
     
@@ -412,7 +372,7 @@ class IntussusceptionSimulator:
         self.is_perforated = False
         self.perforation_time = None
         self.perforation_timer_active = False
-        self.warned_at_3min = False # Initialize warned_at_3min here
+        self.warned_at_3min = False #Initialize warned_at_3min here
     
     def load_case(self, case_data):
         self.case_data = case_data
@@ -427,7 +387,7 @@ class IntussusceptionSimulator:
         self.is_perforated = False
         self.perforation_time = None
         self.perforation_timer_active = False
-        self.warned_at_3min = False # Also reset when loading a new case
+        self.warned_at_3min = False #Also reset when loading a new case
         return True
     
     def start_simulation(self, callback=None):
@@ -449,12 +409,12 @@ class IntussusceptionSimulator:
                 }
                 for cb in self.callbacks: cb(state)
 
-                # Perforation timer logic
+                #Perforation timer logic
                 if self.is_perforated and self.perforation_timer_active:
                     elapsed_perforation_time = self.sim_time - self.perforation_time
-                    if elapsed_perforation_time >= 180: # 3 minutes
-                        self.perforation_timer_active = False # Deactivate timer
-                        # Trigger callback for vitals crashed scenario
+                    if elapsed_perforation_time >= 180: #3 minutes
+                        self.perforation_timer_active = False #Deactivate timer
+                        #Trigger callback for vitals crashed scenario
                         for cb in self.callbacks: cb({
                             "current_stage": self.current_stage,
                             "sim_time": self.sim_time,
@@ -463,12 +423,12 @@ class IntussusceptionSimulator:
                             "outcome": "Perforated Vitals Crashed"
                         })
                 
-                # Simulation time warnings and limits
+                #Simulation time warnings and limits
                 if self.sim_time >= 180 and self.sim_time < 300 and not self.warned_at_3min:
                     self.warned_at_3min = True
                     for cb in self.callbacks:
                         cb({"type": "warning", "message": "3_min_warning"})
-                elif self.sim_time >= 300: # 5 minutes
+                elif self.sim_time >= 300: #5 minutes
                     for cb in self.callbacks: cb({
                         "current_stage": self.current_stage,
                         "sim_time": self.sim_time,
@@ -508,7 +468,7 @@ class IntussusceptionSimulator:
                 "fluoro_time": self.fluoro_time
             }
 
-        # Always append pressure and time history for every reading
+        #Always append pressure and time history for every reading
         self.pressure_history.append(pressure)
         self.time_history.append(self.sim_time)
         
@@ -530,7 +490,7 @@ class IntussusceptionSimulator:
         if random_value < perf_prob:
             outcome = "Perforated"
             self.is_perforated = True
-            self.current_stage = num_stages + 1  # Set to a stage beyond normal range
+            self.current_stage = num_stages + 1  #Set to a stage beyond normal range
             self.last_outcome = outcome
             if not self.perforation_timer_active:
                 self.perforation_time = self.sim_time
@@ -555,7 +515,7 @@ class IntussusceptionSimulator:
         
         self.last_outcome = outcome
         
-        # THIS IS THE CRUCIAL CHANGE: Always append current_stage to stage_history after all logic, ensuring sync
+        #Always append current_stage to stage_history after all logic, ensuring sync
         self.stage_history.append(self.current_stage)
         
         return {
@@ -571,7 +531,7 @@ class IntussusceptionSimulator:
         if self.fluoro_time >= max_fluoro_time:
             return {"result": "radiation_overdose"}
 
-        # Increment fluoro time every second
+        #Increment fluoro time every second
         if self.sim_time-self.last_fluoro_time >=1:
             self.fluoro_time += 1
             self.last_fluoro_time = self.sim_time
@@ -608,24 +568,24 @@ class PreOpImageScroller(ttk.Frame):
         self.current_index = 0
         self.photo_image = None
 
-        # Layout: row 0 = image (expands), row 1 = nav (fixed)
+        #Layout: row 0 = image (expands), row 1 = nav (fixed)
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # Image display
+        #Image display
         self.image_label = ttk.Label(self, text="No Images Available", anchor="center")
         self.image_label.grid(row=0, column=0, sticky="nsew", pady=5)
 
-        # Click-to-zoom
+        #Click-to-zoom
         self.image_label.bind("<Button-1>", self.open_zoom_viewer)
-        self.image_label.configure(cursor="")  # becomes "hand2" when an image is shown
+        self.image_label.configure(cursor="")  #becomes "hand2" when an image is shown
 
-        # Navigation bar (bottom)
+        #Navigation bar (bottom)
         self.nav_frame = ttk.Frame(self)
         self.nav_frame.grid(row=1, column=0, sticky="ew", pady=5)
 
-        self.nav_frame.grid_columnconfigure(0, weight=1)  # left spacer
-        self.nav_frame.grid_columnconfigure(4, weight=1)  # right spacer
+        self.nav_frame.grid_columnconfigure(0, weight=1)  #left spacer
+        self.nav_frame.grid_columnconfigure(4, weight=1)  #right spacer
 
         self.prev_button = ttk.Button(self.nav_frame, text="◀", command=self.prev_image, width=3)
         self.prev_button.grid(row=0, column=1, padx=2)
@@ -636,7 +596,7 @@ class PreOpImageScroller(ttk.Frame):
         self.next_button = ttk.Button(self.nav_frame, text="▶", command=self.next_image, width=3)
         self.next_button.grid(row=0, column=3, padx=2)
 
-        # Initially hide nav if not needed
+        #Initially hide nav if not needed
         self.update_navigation_visibility()
 
     def set_images(self, image_paths):
@@ -648,7 +608,7 @@ class PreOpImageScroller(ttk.Frame):
         else:
             self.image_label.config(image="", text="No Images Available", cursor="")
 
-    #  Navigation 
+    #Navigation 
     def prev_image(self):
         if self.image_paths and self.current_index > 0:
             self.current_index -= 1
@@ -659,7 +619,7 @@ class PreOpImageScroller(ttk.Frame):
             self.current_index += 1
             self.display_image()
 
-    #  Helpers 
+    #Helpers 
     def update_navigation_visibility(self):
         """Show/hide navigation controls based on number of images."""
         if len(self.image_paths) <= 1:
@@ -681,7 +641,7 @@ class PreOpImageScroller(ttk.Frame):
         idx = max(0, min(self.current_index, len(self.image_paths) - 1))
         img_path = self.image_paths[idx]
         if os.path.exists(img_path):
-            # Assumes your ZoomableImageViewer class is defined elsewhere in the file.
+            #Assumes your ZoomableImageViewer class is defined elsewhere in the file.
             ZoomableImageViewer(self, img_path)
 
     def display_image(self):
@@ -696,13 +656,13 @@ class PreOpImageScroller(ttk.Frame):
             try:
                 img = Image.open(path)
 
-                # Size to fit the label’s current size
+                #Size to fit the label’s current size
                 container = self.image_label
                 container.update_idletasks()
                 panel_w = container.winfo_width()
                 panel_h = container.winfo_height()
 
-                # Provide a sane default if not yet laid out
+                #Provide a sane default if not yet laid out
                 if panel_w < 10 or panel_h < 10:
                     panel_w, panel_h = 800, 600
 
@@ -724,34 +684,34 @@ class ImageScroller(ttk.Frame):
         self.current_index = 0
         self.photo_image = None
 
-        self.grid_rowconfigure(1, weight=1) # Row 1 (image) expands
+        self.grid_rowconfigure(1, weight=1) #Row 1 (image) expands
         self.grid_columnconfigure(0, weight=1)
 
-        # Navigation frame at the top (Row 0)
+        #Navigation frame at the top (Row 0)
         self.nav_frame = ttk.Frame(self)
         self.nav_frame.grid(row=0, column=0, sticky="ew", pady=5)
 
-        # Center the navigation buttons
+        #Center the navigation buttons
         self.nav_frame.grid_columnconfigure(1, weight=1)
 
-        # Previous button
+        #Previous button
         self.prev_button = ttk.Button(self.nav_frame, text="◀", command=self.prev_image, width=3)
         self.prev_button.grid(row=0, column=0, padx=5)
 
-        # Counter label in the center
+        #Counter label in the center
         self.counter_label = ttk.Label(self.nav_frame, text="0/0", anchor="center")
         self.counter_label.grid(row=0, column=1, sticky="ew")
 
-        # Next button
+        #Next button
         self.next_button = ttk.Button(self.nav_frame, text="▶", command=self.next_image, width=3)
         self.next_button.grid(row=0, column=2, padx=5)
 
-        # Image display (Row 1)
+        #Image display (Row 1)
         self.image_label = ttk.Label(self, text="No Images Available", anchor="center")
         self.image_label.grid(row=1, column=0, sticky="nsew", pady=5)
         self.image_label.bind("<Button-1>", self.open_zoom_viewer)
 
-        # Initially hide navigation controls
+        #Initially hide navigation controls
         self.update_navigation_visibility()
 
     def set_images(self, image_paths):
@@ -807,7 +767,7 @@ class ImageScroller(ttk.Frame):
         if os.path.exists(path):
             try:
                 img = Image.open(path)
-                # Use the label for sizing, as its container (the grid cell) is now properly managed.
+                #Use the label for sizing, as its container (the grid cell) is now properly managed.
                 container = self.image_label
                 container.update_idletasks()
                 
@@ -840,7 +800,7 @@ class ZoomableImageViewer(tk.Toplevel):
         self.tk_img = None
         self.image_on_canvas = None
 
-        # Match size of the main window
+        #Match size of the main window
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         win_w = int(screen_w * 0.75)
@@ -853,9 +813,9 @@ class ZoomableImageViewer(tk.Toplevel):
         self.after(100, self.init_display)
 
     def bind_events(self):
-        self.canvas.bind("<MouseWheel>", self.on_mousewheel)         # Windows / macOS
-        self.canvas.bind("<Button-4>", self.on_mousewheel)           # Linux scroll up
-        self.canvas.bind("<Button-5>", self.on_mousewheel)           # Linux scroll down
+        self.canvas.bind("<MouseWheel>", self.on_mousewheel)         #Windows / macOS
+        self.canvas.bind("<Button-4>", self.on_mousewheel)           #Linux scroll up
+        self.canvas.bind("<Button-5>", self.on_mousewheel)           #Linux scroll down
         self.canvas.bind("<ButtonPress-1>", self.start_pan)
         self.canvas.bind("<B1-Motion>", self.do_pan)
 
@@ -870,7 +830,7 @@ class ZoomableImageViewer(tk.Toplevel):
             self.scale = min(scale_w, scale_h, 1.0)
             self.update_image() 
         else:
-            # Show placeholder text if no image yet
+            #Show placeholder text if no image yet
             self.canvas.delete("all")
             self.canvas.create_text(
                 self.canvas.winfo_width()//2,
@@ -911,7 +871,7 @@ class ZoomableImageViewer(tk.Toplevel):
 
         self.canvas.config(scrollregion=self.canvas.bbox(tk.ALL))
 
-        # Auto-recenter if image is smaller than canvas
+        #Auto-recenter if image is smaller than canvas
         if img_w <= canvas_w:
             self.canvas.xview_moveto(0.0)
         if img_h <= canvas_h:
@@ -919,31 +879,28 @@ class ZoomableImageViewer(tk.Toplevel):
 
 class ARIanaApp:
     """Main application class using Tkinter GUI"""   
-   # In class ARIanaApp:
 
     def __init__(self):
         self.root = tk.Tk()
 
-        # ALL INSTANCE ATTRIBUTES ARE DEFINED FIRST
-
-        # App State & Data
+        #App State & Data
         self.result_plot_images = []
         self.result_plot_index = 0
         self.called_surgery_from_preop = False
         self.warning_shown = False
         self.current_case = None
 
-        # Core Components
+        #Core Components
         self.case_loader = CaseLoader()
         self.simulator = IntussusceptionSimulator()
         self.all_cases_data = []
 
-        # Tkinter Variables (for widgets)
+        #Tkinter Variables (for widgets)
         self.pressure_var = tk.DoubleVar(value=0)
         self.virtual_slider_var = tk.BooleanVar(value=False)
         self.visibility_vars = {}
 
-        # UI Element References (to be populated in create_widgets)
+        #UI Element References (to be populated in create_widgets)
         self.status_labels = {}
         self.status_label_last_values = {}
         self.notebook = None
@@ -954,12 +911,12 @@ class ARIanaApp:
         self.image_label = None
         self.warning_label = None
 
-        # Manometer & Threading
+        #Manometer & Threading
         self.manometer_queue = queue.Queue()
         self.manometer_thread = ManometerThread(self.manometer_queue)
         self.manometer_pressure = 0
         
-        # The icon is set once and stored to prevent garbage collection.
+        #The icon is set once and stored to prevent garbage collection.
         self.app_icon = tk.PhotoImage(file="ARIana_logo.png")
         self.root.iconphoto(False, self.app_icon)
         
@@ -972,17 +929,13 @@ class ARIanaApp:
         app_w = int(screen_w * 0.95)
         app_h = int(screen_h * 0.95)
         self.root.geometry(f"{app_w}x{app_h}")
-        self.root.minsize(720, 640)   # min screen dimensions
+        self.root.minsize(720, 640)   #min screen dimensions
 
-        # START BACKGROUND PROCESSES 
         self.manometer_thread.start()
 
-        # CREATE UI (Now that all attributes are ready)
         self.create_widgets()
         self._raw_descs = {}
 
-
-        # SET INITIAL APP STATE
         self.show_disclaimer()
         self.check_manometer_queue()
 
@@ -992,43 +945,43 @@ class ARIanaApp:
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)        
         self.disclaimer_frame = ttk.Frame(self.notebook)
         self.startup_frame = ttk.Frame(self.notebook)
-        self.pre_operation_frame = ttk.Frame(self.notebook) # New frame
+        self.pre_operation_frame = ttk.Frame(self.notebook) #New frame
         self.simulation_frame = ttk.Frame(self.notebook)
         self.results_frame = ttk.Frame(self.notebook)
         
-        # Pack the frames within the notebook before adding them
+        #Pack the frames within the notebook before adding them
         self.disclaimer_frame.pack(fill=tk.BOTH, expand=True)
         self.startup_frame.pack(fill=tk.BOTH, expand=True)
-        self.pre_operation_frame.pack(fill=tk.BOTH, expand=True) # Pack new frame
+        self.pre_operation_frame.pack(fill=tk.BOTH, expand=True) #Pack new frame
         self.simulation_frame.pack(fill=tk.BOTH, expand=True)
         self.results_frame.pack(fill=tk.BOTH, expand=True)
 
         self.notebook.add(self.disclaimer_frame, text="Disclaimer")
         self.notebook.add(self.startup_frame, text="Case Selection")
-        self.notebook.add(self.pre_operation_frame, text="Pre-Operation") # Add new tab
+        self.notebook.add(self.pre_operation_frame, text="Pre-Operation") #Add new tab
         self.notebook.add(self.simulation_frame, text="Simulation")
         self.notebook.add(self.results_frame, text="Results")
         
-        # Tab-aware spacebar behavior: Simulation = capture; others = do nothing
+        #Tab-aware spacebar behavior: Simulation = capture; others = do nothing
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
-        # Disable tab switching by unbinding events
-        self.notebook.bind('<Button-1>', lambda event: 'break') # Prevent mouse clicks on tabs
-        self.notebook.bind('<B1-Motion>', lambda event: 'break') # Prevent dragging tabs
-        self.notebook.bind('<ButtonRelease-1>', lambda event: 'break') # Prevent releasing mouse on tabs
+        #Disable tab switching by unbinding events
+        self.notebook.bind('<Button-1>', lambda event: 'break') #Prevent mouse clicks on tabs
+        self.notebook.bind('<B1-Motion>', lambda event: 'break') #Prevent dragging tabs
+        self.notebook.bind('<ButtonRelease-1>', lambda event: 'break') #Prevent releasing mouse on tabs
 
         self.create_disclaimer_screen()
         self.create_startup_screen()
-        self.create_pre_operation_screen() # New call
+        self.create_pre_operation_screen() #New call
         self.create_simulation_screen()
         self.create_results_screen()
 
-        # Apply initial spacebar behavior for the initially selected tab
+        #Apply initial spacebar behavior for the initially selected tab
         self._on_tab_changed()
-
+    
     def _on_tab_changed(self, event=None):
         """Only allow spacebar to trigger fluoroscopy on the Simulation tab."""
-        # Clear any previous global binding
+        #Clear any previous global binding
         try:
             self.root.unbind_all("<space>")
         except Exception:
@@ -1037,18 +990,18 @@ class ARIanaApp:
         current_tab = self.notebook.tab(self.notebook.select(), "text")
 
         if current_tab == "Simulation":
-            # Let the spacebar reach our global handler even if a Button has focus
+            #Let the spacebar reach our global handler even if a Button has focus
             for cls in ("TButton", "TCheckbutton", "Button"):
                 try:
                     self.root.unbind_class(cls, "<space>")
                 except Exception:
                     pass
-            # Bind space globally to take a fluoro image; return "break" in handler already stops default
+            #Bind space globally to take a fluoro image; return "break" in handler already stops default
             self.root.bind_all("<space>", self.take_fluoro_image)
         else:
-            # On non-Simulation tabs: swallow space globally
+            #On non-Simulation tabs: swallow space globally
             self.root.bind_all("<space>", lambda e: "break")
-            # And explicitly prevent Buttons/Checks from activating on space
+            #And explicitly prevent Buttons/Checks from activating on space
             for cls in ("TButton", "TCheckbutton", "Button"):
                 self.root.bind_class(cls, "<space>", lambda e: "break")
 
@@ -1057,10 +1010,10 @@ class ARIanaApp:
         main_frame = ttk.Frame(self.pre_operation_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # LEFT panel: make it narrower and fixed-width
-        left_panel = ttk.Frame(main_frame, width=320)  # was flexible; now a compact fixed width
+        #LEFT panel: make it narrower and fixed-width
+        left_panel = ttk.Frame(main_frame, width=320)  #was flexible; now a compact fixed width
         left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
-        left_panel.pack_propagate(False)  # keep the fixed width
+        left_panel.pack_propagate(False)  #keep the fixed width
 
         ttk.Button(left_panel, text="Start Intussusception",
                 command=self.start_simulation_from_pre_op).pack(pady=8, fill="x")
@@ -1081,51 +1034,31 @@ class ARIanaApp:
         checklist_frame.grid_rowconfigure(0, weight=1)
         checklist_frame.grid_columnconfigure(0, weight=0)
 
-        # Text widget (read-only after insert)
+        #Text widget (read-only after insert)
         self.preop_checklist_text = tk.Text(
             checklist_frame,
             wrap="word",
-            width=28,          # a little narrower than before
+            width=28,          #a little narrower than before
             height=18
         )
         self.preop_checklist_text.configure(font=("Arial", 16))
 
-        # Vertical scrollbar
+        #Vertical scrollbar
         checklist_scrollbar = ttk.Scrollbar(checklist_frame, orient="vertical", command=self.preop_checklist_text.yview)
         self.preop_checklist_text.configure(yscrollcommand=checklist_scrollbar.set)
 
-        # Layout with grid so the text expands and scrollbar stays on the right
-        # Scrollbar on the left
+        #Layout with grid so the text expands and scrollbar stays on the right
+        #Scrollbar on the left
         checklist_scrollbar.grid(row=0, column=0, sticky="ns")
         self.preop_checklist_text.grid(row=0, column=1, sticky="nsew")
 
-        # And update column weights so the text expands, not the scrollbar
+        #And update column weights so the text expands, not the scrollbar
         checklist_frame.grid_columnconfigure(1, weight=1)
-        #use dynamic checklist from .txt debug
-        #removed checklist order
-        #print("[DEBUG] Checklist search order:\n  " + "\n  ".join(str(d / PREOP_FILENAME) for d in _program_dirs()))
-
-
-
-        #checklist = (
-        #   "1. Pediatric surgery has been consulted and is aware of the patient.\n"
-         #   "2. Abdominal radiographs (AP and Cross-table lateral or decubitus) demonstrate no free air.\n"
-          #  "3. No peritoneal signs are present.\n"
-           # "4. Patient is hemodynamically stable.\n"
-          #  "5. IV access has been secured.\n"
-          #  "6. Parents or guardians have consented to the procedure (preferable).\n"
-          #  "7. Large-bore angiocath available at bedside.\n"
-          #  "8. Provider in the room who will be primarily responsible for the patient (nurse or doctor).\n"
-          #  "9. Patient's vital signs are being monitored.\n"
-          #  "10. What catheter will be used?\n"
-          #  "11. Will you sedate the patient?\n"
-        #)
-        #use dynamic checklist from .txt
         checklist = _load_preop_checklist_text()
         self.preop_checklist_text.insert("1.0", checklist)
         self.preop_checklist_text.configure(state="disabled")
 
-        # RIGHT panel: images (expands to take remaining space)
+        #RIGHT panel: images (expands to take remaining space)
         right_panel = ttk.Frame(main_frame)
         right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
@@ -1137,14 +1070,14 @@ class ARIanaApp:
     def on_closing(self):
         """Handle window close event and ensure proper cleanup"""
         self.manometer_thread.stop()
-        # Give the thread a moment to clean up
+        #Give the thread a moment to clean up
         if self.manometer_thread.is_alive():
             self.manometer_thread.join(timeout=1.0)
         self.root.destroy()
 
     def show_pre_operation(self):
         self.notebook.select(self.pre_operation_frame)
-        # Reload checklist each time Pre-Operation tab is shown
+        #Reload checklist each time Pre-Operation tab is shown
         if hasattr(self, "preop_checklist_text"):
             txt = _load_preop_checklist_text()
             self.preop_checklist_text.configure(state="normal")
@@ -1164,7 +1097,7 @@ class ARIanaApp:
         if dontstart == 1:
             messagebox.showinfo("Contraindication", "There was a contraindication. Intussusception is not recommended. The patient should be sent into surgery")
             self.end_simulation(outcome_override="Contraindication Was Not Recognized")
-            return # Prevent simulation from starting
+            return #Prevent simulation from starting
         self.show_simulation()
     
     def show_clinical_history_pre_op(self):
@@ -1179,7 +1112,7 @@ class ARIanaApp:
         import tkinter as tk
         from tkinter import ttk, messagebox
 
-        #  Centered group: title + body (centered as a unit)
+        #Centered group: title + body (centered as a unit)
         self._disc_center = ttk.Frame(self.disclaimer_frame)
         self._disc_center.pack(expand=True)
 
@@ -1194,7 +1127,7 @@ class ARIanaApp:
 
 
 
-        # First run: create a file with your current default text
+        #First run: create a file with your current default text
         disclaimer_text = (
             "This device is designed to help a trained pediatric radiologist teach a\n"
             "trainee the basics of reducing an intussusception with an air enema. It is\n"
@@ -1210,7 +1143,7 @@ class ARIanaApp:
             "program."
         )
 
-        # Build the label with the text we loaded
+        #Build the label with the text we loaded
         self.disclaimer_label = ttk.Label(
             self._disc_center,
             text=disclaimer_text,
@@ -1221,7 +1154,7 @@ class ARIanaApp:
         )
         self.disclaimer_label.pack(padx=24, pady=(0, 0), fill=tk.X)
 
-        # Buttons pinned to bottom (keep your existing code)
+        #Buttons pinned to bottom (keep your existing code)
         self.disclaimer_button_frame = ttk.Frame(self.disclaimer_frame)
         self.disclaimer_button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
         ttk.Button(self.disclaimer_button_frame, text="I Agree", command=self.show_startup).pack(side=tk.LEFT, padx=10)
@@ -1234,37 +1167,37 @@ class ARIanaApp:
 
     def _resize_disclaimer(self, event=None):
         """Responsive sizing for disclaimer without introducing vertical gaps."""
-        # Current size
+        #Current size
         w = (event.width if event else self.disclaimer_frame.winfo_width()) or 900
         h = (event.height if event else self.disclaimer_frame.winfo_height()) or 700
 
-        # Scale factor (lower denominator -> larger overall text)
+        #Scale factor (lower denominator -> larger overall text)
         a=1.2
-        scale = min(w / (1000.0*a), h / (650.0*a))  # was 1200,800 before
+        scale = min(w / (1000.0*a), h / (650.0*a))  #was 1200,800 before
 
-        # Increased base sizes
-        BASE_TITLE, MIN_TITLE, MAX_TITLE = 34, 20, 54  # was 26 base
-        BASE_BODY,  MIN_BODY,  MAX_BODY  = 22, 14, 38  # was 16 base
+        #Increased base sizes
+        BASE_TITLE, MIN_TITLE, MAX_TITLE = 34, 20, 54  #was 26 base
+        BASE_BODY,  MIN_BODY,  MAX_BODY  = 22, 14, 38  #was 16 base
 
         title_size = max(MIN_TITLE, min(MAX_TITLE, int(BASE_TITLE * scale)))
         body_size  = max(MIN_BODY,  min(MAX_BODY,  int(BASE_BODY  * scale)))
 
-        # Apply fonts
+        #Apply fonts
         self.disclaimer_title.config(font=("Arial", title_size, "bold"))
         self.disclaimer_label.config(font=("Arial", body_size))
 
-        # Increased wrap clamp so lines stay longer before wrapping
-        wrap = max(500, min(int(w * 0.95), 1800))  # was 420–1400
+        #Increased wrap clamp so lines stay longer before wrapping
+        wrap = max(500, min(int(w * 0.95), 1800))  #was 420–1400
         self.disclaimer_label.config(wraplength=wrap)
 
-        # Tiny fixed gap
+        #Tiny fixed gap
         self.disclaimer_title.pack_configure(pady=(0, 2))
 
-        # Scaled side padding
+        #Scaled side padding
         pad_x = max(20, int(w * 0.05))
         self.disclaimer_label.pack_configure(padx=pad_x, pady=(0, 0), fill="x")
 
-        # Keep centered group & pinned buttons
+        #Keep centered group & pinned buttons
         self._disc_center.pack_configure(expand=True)
         self.disclaimer_button_frame.pack_configure(side="bottom", fill="x", pady=10)
 
@@ -1272,7 +1205,7 @@ class ARIanaApp:
         main_frame = ttk.Frame(self.startup_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # LEFT: case list + buttons
+        #LEFT: case list + buttons
         selection_frame = ttk.Frame(main_frame)
         selection_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
@@ -1282,13 +1215,13 @@ class ARIanaApp:
         ttk.Label(title_frame, text="Select a Patient Case", font=("Arial", 16, "bold")).pack(side=tk.LEFT)
         ttk.Button(title_frame, text="\u21BB", command=self.load_cases_into_tree).pack(side=tk.RIGHT)
 
-        # Buttons under the tree
+        #Buttons under the tree
         button_frame = ttk.Frame(selection_frame)
         button_frame.pack(side=tk.BOTTOM, pady=(10, 0), fill="x")
         ttk.Button(button_frame, text="Select Case", command=self.start_selected_case).pack(side=tk.LEFT, padx=10)
         ttk.Button(button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=10)
 
-        # Treeview container
+        #Treeview container
         tree_frame = ttk.Frame(selection_frame)
         tree_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -1308,20 +1241,20 @@ class ARIanaApp:
         self.case_list_tree.heading("Name", text="Patient Name")
         self.case_list_tree.heading("Description", text="Description")
 
-        # Make both columns stretch; Name gets ~28% on resize, Description the rest (set in _resize_tree_columns)
+        #Make both columns stretch; Name gets ~28% on resize, Description the rest (set in _resize_tree_columns)
         self.case_list_tree.column("Name", anchor="w", width=260, minwidth=200, stretch=True)
         self.case_list_tree.column("Description", anchor="w", width=800, minwidth=400, stretch=True)
 
         self.case_list_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.case_list_tree.yview)
 
-        # Update preview + any other selection effects
+        #Update preview + any other selection effects
         self.case_list_tree.bind("<<TreeviewSelect>>", self.on_case_select_display)
 
-        # Dynamically resize columns to window width
+        #Dynamically resize columns to window width
         tree_frame.bind("<Configure>", self._resize_tree_columns)
 
-        # Also refresh preview text when selection changes
+        #Also refresh preview text when selection changes
 
     def on_case_select_display(self, event=None):
         selected_items = self.case_list_tree.selection()
@@ -1341,12 +1274,12 @@ class ARIanaApp:
 
         for case in self.all_cases_data:
             desc = case["description"] or ""
-            # Add newline padding so there's a gap between cases
+            #Add newline padding so there's a gap between cases
             #desc = desc.rstrip() + "\n\n\n\n\n\n\n\n\n\n\n\n"
             self._raw_descs[case["id"]] = desc
             self.case_list_tree.insert("", tk.END, iid=case["id"], values=(case["name"], desc))
 
-        # initial wrap based on current column width
+        #initial wrap based on current column width
         self._rewrap_descriptions()
 
 
@@ -1360,11 +1293,11 @@ class ARIanaApp:
             w = words[i]
             ww = font.measure(w)
             if not line:
-                # handle overlong word
+                #handle overlong word
                 if ww <= width_px:
                     line, cur_w = w, ww
                 else:
-                    # greedy hard-break of a single too-long word
+                    #greedy hard-break of a single too-long word
                     cut = max(1, int(len(w) * width_px / max(1, ww)))
                     part, rest = w[:cut], w[cut:]
                     line, cur_w = part, font.measure(part)
@@ -1377,7 +1310,7 @@ class ARIanaApp:
                 else:
                     lines.append(line)
                     line, cur_w = "", 0
-                    continue  # reprocess same word on new line
+                    continue  #reprocess same word on new line
             i += 1
         if line:
             lines.append(line)
@@ -1388,13 +1321,13 @@ class ARIanaApp:
         if not tree.get_children():
             return
 
-        # current Description column pixel width
+        #current Description column pixel width
         desc_w = int(tree.column("Description")["width"])
         if desc_w < 40:
             return
-        target_px = max(60, desc_w - 16)  # padding inside cell
+        target_px = max(60, desc_w - 16)  #padding inside cell
 
-        # use the Treeview’s font (fallback to TkDefaultFont)
+        #use the Treeview’s font (fallback to TkDefaultFont)
         style_name = tree.cget("style") or "Treeview"
         style = ttk.Style()
         font_name = style.lookup(style_name, "font") or "TkDefaultFont"
@@ -1406,7 +1339,7 @@ class ARIanaApp:
         line_space = fnt.metrics("linespace")
         max_lines = 1
 
-        # wrap and update items
+        #wrap and update items
         for iid in tree.get_children(""):
             raw = self._raw_descs.get(iid, "")
             wrapped = self._wrap_by_pixels(raw, target_px, fnt)
@@ -1414,22 +1347,22 @@ class ARIanaApp:
             name = tree.item(iid, "values")[0]
             tree.item(iid, values=(name, "\n".join(wrapped)))
 
-        # set a global rowheight big enough to show the longest item
-        pad_y = 21  # a little breathing room
+        #set a global rowheight big enough to show the longest item
+        pad_y = 21  #a little breathing room
         new_row_h = max(24, max_lines * line_space + pad_y)
         ttk.Style().configure("Treeview", rowheight=new_row_h)
 
     
     def _resize_tree_columns(self, event=None):
-        # Compute available width inside the Treeview (minus scrollbar/padding)
+        #Compute available width inside the Treeview (minus scrollbar/padding)
         tree = self.case_list_tree
         tree.update_idletasks()
         total = tree.winfo_width()
-        scrollbar_w = 18  # typical on most themes
-        side_pad = 24     # little breathing room
+        scrollbar_w = 18  #typical on most themes
+        side_pad = 24     #little breathing room
         avail = max(300, total - scrollbar_w - side_pad)
 
-        # Allocate proportions: ~28% for Name, rest for Description
+        #Allocate proportions: ~28% for Name, rest for Description
         name_w = max(220, int(avail * 0.28))
         desc_w = max(400, avail - name_w)
 
@@ -1448,7 +1381,7 @@ class ARIanaApp:
 
             if self.current_case:
                 self.simulator.load_case(self.current_case)
-                self.show_pre_operation() # Navigate to Pre-Operation screen
+                self.show_pre_operation() #Navigate to Pre-Operation screen
         except Exception as e:
             messagebox.showerror("Error", f"An unexpected error occurred while loading the case: {e}")
     def start_pressure_sampling(self):
@@ -1460,11 +1393,11 @@ class ARIanaApp:
             if self.virtual_slider_var.get():
                 pressure = round(self.pressure_var.get())
             else:
-                pressure = self.manometer_pressure # Use manometer pressure when virtual slider is off
+                pressure = self.manometer_pressure #Use manometer pressure when virtual slider is off
 
             result = self.simulator.process_pressure_reading(pressure)
             self.update_simulation_status(result)
-            self.root.after(50, sample_loop)  # Adjust interval as needed (ms)
+            self.root.after(50, sample_loop)  #Adjust interval as needed (ms)
         self.root.after(50, sample_loop)
 
     def create_simulation_screen(self):
@@ -1481,12 +1414,12 @@ class ARIanaApp:
         controls_frame = ttk.LabelFrame(left_panel, text="Controls")
         controls_frame.pack(pady=10, fill="x")
 
-        self.virtual_slider_var = tk.BooleanVar(value=False) # Default to unchecked
+        self.virtual_slider_var = tk.BooleanVar(value=False) #Default to unchecked
         slider_switch = ttk.Checkbutton(controls_frame, text="Virtual Pressure Slider", variable=self.virtual_slider_var, command=self.toggle_pressure_input)
         slider_switch.pack(anchor="w", padx=5, pady=(5,0))
 
-        # Use a regular Frame for the pressure input area to remove the dark box
-        self.pressure_input_frame = ttk.Frame(controls_frame) # Changed from ttk.Frame to tk.Frame if dark box is from ttk.Frame style
+        #Use a regular Frame for the pressure input area to remove the dark box
+        self.pressure_input_frame = ttk.Frame(controls_frame) 
         self.pressure_input_frame.pack(pady=5, padx=5, fill="x")
 
         self.pressure_frame = ttk.Frame(self.pressure_input_frame)
@@ -1496,7 +1429,7 @@ class ARIanaApp:
         self.pressure_scale = ttk.Scale(self.pressure_frame, from_=0, to=180, orient=tk.HORIZONTAL, variable=self.pressure_var, command=lambda v: self.on_pressure_change(v, self.pressure_display_label))
         self.pressure_scale.pack(side=tk.RIGHT, fill="x", expand=True)
 
-        # Manometer Status and Pressure Display
+        #Manometer Status and Pressure Display
 
         self.manometer_status_label = ttk.Label(self.pressure_input_frame, text="Disconnected", foreground="red")
         self.manometer_status_label.pack(fill="x", expand=True)
@@ -1511,7 +1444,7 @@ class ARIanaApp:
         
         status_frame.grid_columnconfigure(1, weight=1)
         for i, status_name in enumerate(["Stage", "Sim Time", "Pressure", "Fluoro Time", "Outcome"]):
-            row_frame = ttk.Frame(status_frame) # Use a frame for each row
+            row_frame = ttk.Frame(status_frame) #Use a frame for each row
             row_frame.grid(row=i, column=0, columnspan=2, sticky="ew")
             row_frame.grid_columnconfigure(1, weight=1)
             
@@ -1522,11 +1455,11 @@ class ARIanaApp:
             
             self.status_labels[status_name] = value_label
 
-        # Red dot indicator for fluoroscopy
+        #Red dot indicator for fluoroscopy
         self.fluoro_dot_canvas = tk.Canvas(status_frame, width=10, height=10, highlightthickness=0)
         self.fluoro_dot_canvas.create_oval(0, 0, 10, 10, fill="red", outline="")
-        self.fluoro_dot_canvas.grid(row=0, column=2, padx=2, pady=2, sticky="ne") # Position in top-right
-        self.fluoro_dot_canvas.grid_remove() # Initially hide the dot
+        self.fluoro_dot_canvas.grid(row=0, column=2, padx=2, pady=2, sticky="ne") #Position in top-right
+        self.fluoro_dot_canvas.grid_remove() #Initially hide the dot
 
         visibility_frame = ttk.LabelFrame(left_panel, text="Visibility")
         visibility_frame.pack(pady=10, fill="x")
@@ -1537,53 +1470,53 @@ class ARIanaApp:
             chk = ttk.Checkbutton(visibility_frame, text=status_name, variable=var, command=lambda name=status_name: self.toggle_visibility(name))
             chk.pack(anchor="w", padx=5)
         
-        # Add red warning text underneath visibility settings
+        #Add red warning text underneath visibility settings
         self.warning_label = tk.Label(left_panel, text="", fg="red", font=("Arial", 16, "bold"), wraplength=300, justify="left", relief="flat", bd=0)
-        # Don't pack it yet — wait until text is shown
+        #Don't pack it yet — wait until text is shown
      
         self.image_label = ttk.Label(right_panel, anchor="center")
         
-        # Pop-out button for Simulation fluoroscopy
+        #Pop-out button for Simulation fluoroscopy
         self.image_label.pack(pady=10, fill=tk.BOTH, expand=True)
 
     def create_results_screen(self):
         main_frame = ttk.Frame(self.results_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Use a 3-row grid layout: summary, content, and buttons
-        main_frame.grid_rowconfigure(1, weight=1)  # Let content_frame expand
+        #Use a 3-row grid layout: summary, content, and buttons
+        main_frame.grid_rowconfigure(1, weight=1)  #Let content_frame expand
         main_frame.grid_columnconfigure(0, weight=1)
 
-        # Row 0: Summary
+        #Row 0: Summary
         self.results_summary = ttk.Label(main_frame, text="", font=("Arial", 12), justify="center", anchor="center")
         self.results_summary.grid(row=0, column=0, pady=10, sticky="ew")
 
-        # Row 1: Content Frame
+        #Row 1: Content Frame
         content_frame = ttk.Frame(main_frame)
         content_frame.grid(row=1, column=0, sticky="nsew")
         
-        content_frame.grid_columnconfigure(0, weight=1) # Plot column
-        content_frame.grid_columnconfigure(1, weight=1) # Image column
-        content_frame.grid_rowconfigure(0, weight=1)    # Ensure the row can expand vertically
+        content_frame.grid_columnconfigure(0, weight=1) #Plot column
+        content_frame.grid_columnconfigure(1, weight=1) #Image column
+        content_frame.grid_rowconfigure(0, weight=1)    #Ensure the row can expand vertically
 
-        # Left content: Plot
+        #Left content: Plot
         self.plot_canvas_frame = ttk.Frame(content_frame)
         self.plot_canvas_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
         self.plot_image_label = ttk.Label(self.plot_canvas_frame)
         self.plot_image_label.pack(fill="both", expand=True)
         self.plot_image_label.configure(anchor="center", justify="center", wraplength=600)
 
-        # Right content: Image scroller
+        #Right content: Image scroller
         image_frame = ttk.Frame(content_frame)
         image_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
         ttk.Label(image_frame, text="Post-procedure Images", font=("Arial", 12, "bold")).pack()
         self.results_image_scroller = ImageScroller(image_frame)
         self.results_image_scroller.pack(fill="both", expand=True)
 
-        # Row 2: Buttons (FIXED HEIGHT)
+        #Row 2: Buttons (FIXED HEIGHT)
         bottom_button_frame = ttk.Frame(main_frame, height=60)
         bottom_button_frame.grid(row=2, column=0, sticky="ew", pady=5)
-        bottom_button_frame.grid_propagate(False)  # Prevent collapse
+        bottom_button_frame.grid_propagate(False)  #Prevent collapse
 
         ttk.Button(bottom_button_frame, text="Back to Case Selection", command=self.show_startup).pack(side=tk.LEFT, padx=20, ipadx=10, ipady=5)
         ttk.Button(bottom_button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=20, ipadx=10, ipady=5)
@@ -1596,7 +1529,7 @@ class ARIanaApp:
         else:
             self.pressure_frame.pack_forget()
             self.manometer_status_label.pack(fill="x", expand=True)
-        # Ensure focus is returned to the root window after toggling input
+        #Ensure focus is returned to the root window after toggling input
         self.root.focus_set()
 
     def on_pressure_change(self, value, label):
@@ -1606,11 +1539,11 @@ class ARIanaApp:
         self.update_simulation_status(result)
 
     def call_for_surgery(self):
-        # Was the button pressed before starting the simulation?
+        #Was the button pressed before starting the simulation?
         try:
             pressed_in_preop = (self.simulator.sim_time == 0 and self.simulator.current_stage == 1)
         except Exception:
-            pressed_in_preop = True  # safest default if simulator isn't initialized yet
+            pressed_in_preop = True  #safest default if simulator isn't initialized yet
 
         self.called_surgery_from_preop = pressed_in_preop
 
@@ -1621,12 +1554,12 @@ class ARIanaApp:
         """Hides or shows a status label row by changing its text and color."""
         value_label = self.status_labels[name]
         if self.visibility_vars[name].get():
-            # When checked, restore the last known value and default color
-            value_label.config(text=self.status_label_last_values.get(name, "N/A"), foreground="") # Set to default text color
+            #When checked, restore the last known value and default color
+            value_label.config(text=self.status_label_last_values.get(name, "N/A"), foreground="") #Set to default text color
         else:
-            # When unchecked, display "Not Shown", and grey out text
-            value_label.config(text="Not Shown", foreground="grey") # Simplified text, set color to grey
-        # After toggling visibility, ensure focus is returned to the root window
+            #When unchecked, display "Not Shown", and grey out text
+            value_label.config(text="Not Shown", foreground="grey") #Simplified text, set color to grey
+        #After toggling visibility, ensure focus is returned to the root window
         self.root.focus_set()
 
     def show_red_dot(self):
@@ -1636,12 +1569,12 @@ class ARIanaApp:
         self.fluoro_dot_canvas.grid_remove()
 
     def take_fluoro_image(self, event=None):
-        # Show the red dot
+        #Show the red dot
         self.show_red_dot()
-        # Schedule hiding the red dot after 300ms
+        #Schedule hiding the red dot after 300ms
         self.root.after(300, self.hide_red_dot)
 
-        # Call the simulator\"s take_fluoro_image method directly
+        #Call the simulator\"s take_fluoro_image method directly
         result = self.simulator.take_fluoro_image()
         
         if result["result"] == "not_running":
@@ -1652,20 +1585,20 @@ class ARIanaApp:
         else:
             self.display_image(result["image_path"])
         self.root.focus_set()
-        return "break" # Crucial: Stop event propagation
+        return "break" #Crucial: Stop event propagation
     def show_plot_image(self):
         if not self.result_plot_images:
             self.plot_image_label.config(image="", text="No plot images")
             return
         img = self.result_plot_images[self.result_plot_index]
         self.plot_image_label.config(image=img, text="")
-        self.plot_image_label.image = img  # prevent garbage collection
+        self.plot_image_label.image = img  #prevent garbage collection
 
     def update_simulation_status(self, result):
         if not result:
             return
 
-        # Handle warning separately
+        #Handle warning separately
         if result.get("type") == "warning" and result.get("message") == "3_min_warning":
             if not self.warning_shown:
                 self.warning_label.config(
@@ -1677,9 +1610,9 @@ class ARIanaApp:
 
                 self.warning_label.pack(pady=(5, 10), fill="x")
                 self.warning_shown = True
-            return  # Skip rest of method for warnings
+            return  #Skip rest of method for warnings
 
-        # Expect regular outcome dictionary
+        #Expect regular outcome dictionary
         try:
             self.status_label_last_values["Stage"] = str(result["current_stage"])
             self.status_label_last_values["Sim Time"] = f'{result["sim_time"]:.1f}s'
@@ -1709,7 +1642,7 @@ class ARIanaApp:
             try:
                 img = Image.open(image_path)
                 
-                # Use the main image_label for sizing
+                #Use the main image_label for sizing
                 container = self.image_label
                 container.update_idletasks()
                 panel_w = container.winfo_width()
@@ -1718,21 +1651,21 @@ class ARIanaApp:
                 if panel_w > 1 and panel_h > 1:
                     img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
                 else:
-                    # Fallback for when the window is not yet rendered
+                    #Fallback for when the window is not yet rendered
                     img.thumbnail((600, 450), Image.Resampling.LANCZOS)
 
-                # Keep a reference to the PhotoImage to prevent garbage collection
+                #Keep a reference to the PhotoImage to prevent garbage collection
                 self.photo_image = ImageTk.PhotoImage(img)
                 self.image_label.config(image=self.photo_image, text="")
             except Exception as e:
                 print(f"Error displaying image {image_path}: {e}")
                 self.image_label.config(image="", text=f"Image not found:\n{os.path.basename(image_path)}")
         else:
-            # This handles the case where there's no image to display
+            #This handles the case where there's no image to display
             self.image_label.config(image="", text="No Image Available")
  
     def on_window_resize(self, event):
-        # Redraw current images
+        #Redraw current images
         if hasattr(self, 'display_current_image'):
             self.display_current_image()
         if hasattr(self, 'display_result_image'):
@@ -1742,19 +1675,17 @@ class ARIanaApp:
         """Render a matplotlib figure to a Tkinter-compatible PhotoImage."""
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
-        buf = canvas.buffer_rgba()  # modern API
+        buf = canvas.buffer_rgba()  #modern API
         w, h = canvas.get_width_height()
 
-        # Create a Pillow image from the RGBA buffer without copying
+        #Create a Pillow image from the RGBA buffer without copying
         img = Image.frombuffer("RGBA", (w, h), buf, "raw", "RGBA", 0, 1)
-        # If you want RGB (no transparency), convert here
+        #If you want RGB (no transparency), convert here
         img = img.convert("RGB")
 
         photo = ImageTk.PhotoImage(img)
         plt.close(fig)
         return photo
-
-    # In class ARIanaApp:
 
     def plot_performance_data(self, data):
         self.result_plot_images = []
@@ -1772,13 +1703,13 @@ class ARIanaApp:
             print("Not enough data points to generate plot.")
             return
 
-        # Remove duplicates to prevent interpolation errors
+        #Remove duplicates to prevent interpolation errors
         unique_times, unique_indices = np.unique(times, return_index=True)
         times = unique_times
         pressures = pressures[unique_indices]
         stages = stages[unique_indices]
 
-        # Interpolate for a smoother plot
+        #interpolate for a smoother plot
         dense_time = np.linspace(times[0], times[-1], 200)
         pressure_interp = interp1d(times, pressures, kind='linear', fill_value="extrapolate")
         stage_interp = interp1d(times, stages, kind='previous', fill_value="extrapolate")
@@ -1786,8 +1717,7 @@ class ARIanaApp:
         smooth_pressure = gaussian_filter1d(pressure_interp(dense_time), sigma=1.5)
         smooth_stage = gaussian_filter1d(stage_interp(dense_time), sigma=0.75)
 
-        # --- ICON FIX: Use Figure object directly, not pyplot ---
-        # This prevents Matplotlib from interfering with the Tkinter window manager.
+        #This prevents Matplotlib from interfering with the Tkinter window manager.
         fig = Figure(figsize=(8, 4), dpi=100)
         ax1 = fig.add_subplot(111)
         
@@ -1801,14 +1731,14 @@ class ARIanaApp:
         ax2.plot(dense_time, smooth_stage, color="blue", label="Smoothed Stage")
         ax2.tick_params(axis="y", labelcolor="blue")
         
-        # Ensure y-ticks for stages are integers
+        #Ensure y-ticks for stages are integers
         max_stage = int(max(stages)) if len(stages) > 0 else 1
         ax2.set_yticks(range(1, max_stage + 2))
 
         fig.tight_layout()
         self.result_plot_images.append(self.render_figure_to_photoimage(fig))
 
-        # Show the generated plot
+        #Show the generated plot
         self.show_plot_image()
 
   
@@ -1825,27 +1755,27 @@ class ARIanaApp:
         if hasattr(self, "pressure_display_label"):
             self.pressure_display_label.config(text="0")
 
-        # Reset warning flag when starting new simulation
+        #Reset warning flag when starting new simulation
         self.warning_shown = False
         self.warning_label.config(text="")
 
         self.notebook.select(self.simulation_frame)
         self._on_tab_changed() 
         
-        # Reset all visibility checkboxes to checked and update labels
+        #Reset all visibility checkboxes to checked and update labels
         for name in self.visibility_vars.keys():
             self.visibility_vars[name].set(True)
 
-        # Start simulator and begin UI updates
+        #Start simulator and begin UI updates
         self.simulator.start_simulation(callback=self.update_simulation_status)
         
-        # Begin periodic sampling of pressure input (either virtual or manometer)
+        #Begin periodic sampling of pressure input (either virtual or manometer)
         self.start_pressure_sampling()
 
-        # Initial image display: No image until first fluoro
+        #Initial image display: No image until first fluoro
         self.image_label.config(image="", text="Take first fluoroscopic image to begin simulation.")
 
-        # Initial update of UI with baseline values
+        #Initial update of UI with baseline values
         self.update_simulation_status({
             "current_stage": 1,
             "sim_time": 0,
@@ -1853,24 +1783,24 @@ class ARIanaApp:
             "pressure": 0,
             "outcome": "Ready"
         })
-        # Ensure root has focus to capture keyboard events
+        #Ensure root has focus to capture keyboard events
         self.root.focus_set()
 
     def end_simulation(self, outcome_override=None):
         """Stop the simulator and render the Results tab based on how the run ended."""
-        # Stop the engine
+        #Stop the engine
         self.simulator.stop_simulation()
 
-        # collect data once
+        #collect data once
         performance_data = self.simulator.get_performance_data()
 
-        # If user ends while perforation is active but auto-end hasn't fired yet,
-        # force a clear outcome for the Results header.
+        #If user ends while perforation is active but auto-end hasn't fired yet,
+        #force a clear outcome for the Results header.
         if outcome_override is None and self.simulator.is_perforated and self.simulator.perforation_timer_active:
             outcome_override = "Perforation Occurred And Was Recognized"
 
         if not performance_data:
-            # Nothing to show; still navigate to Results with a minimal summary
+            #Nothing to show; still navigate to Results with a minimal summary
             self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_override or self.simulator.last_outcome}")
             self.plot_image_label.config(image="", text="No performance data for this case.")
             self.plot_image_label.image = None
@@ -1880,7 +1810,7 @@ class ARIanaApp:
             self.called_surgery_from_preop = False
             return
 
-        # Decide if we should suppress plotting (Pre-Op surgery or explicit contraindication start)
+        #Decide if we should suppress plotting (Pre-Op surgery or explicit contraindication start)
         is_contra_case = (
             self.current_case and
             self.current_case.get("parameters", {}).get("contraindication_start", 0) == 1
@@ -1893,12 +1823,12 @@ class ARIanaApp:
 
 
         if is_contra_case or called_surgery_in_preop:
-            # No plot; centered message
+            #No plot; centered message
             if hasattr(self, "plot_image_label"):
                 self.plot_image_label.config(image="", text="No performance data for this case.")
-                self.plot_image_label.image = None  # clear any stale image
+                self.plot_image_label.image = None  #clear any stale image
 
-            # Summary + post images
+            #Summary + post images
             summary_text = "Simulation ended.\n"
             summary_text += f"Outcome: {outcome_override or 'Contraindication was not recognized'}"
             self.results_summary.config(text=summary_text)
@@ -1907,33 +1837,33 @@ class ARIanaApp:
             self.results_image_scroller.set_images(post_images)
 
             self.show_results()
-            # Reset the flag for future runs
+            #Reset the flag for future runs
             self.called_surgery_from_preop = False
             return
 
-        # Normal path (plot should be shown)
-        self.called_surgery_from_preop = False  # ensure it doesn’t leak into next run
+        #Normal path (plot should be shown)
+        self.called_surgery_from_preop = False  #ensure it doesn’t leak into next run
 
-        # Summary
+        #Summary
         summary_text = "Simulation ended.\n"
         summary_text += f"Outcome: {outcome_override or self.simulator.last_outcome}"
         self.results_summary.config(text=summary_text)
 
-        # Post-procedure images
+        #Post-procedure images
         post_images = self.current_case.get("images", {}).get("postprocedure", [])
         self.results_image_scroller.set_images(post_images)
 
-        # Plot performance (fallback text if plotting can’t produce an image)
-        self.plot_image_label.config(image="", text="")   # clear any prior text
-        self.result_plot_images = []                      # reset plot cache
-        self.plot_performance_data(performance_data)      # populates self.result_plot_images (or not)
+        #Plot performance (fallback text if plotting can’t produce an image)
+        self.plot_image_label.config(image="", text="")   #clear any prior text
+        self.result_plot_images = []                      #reset plot cache
+        self.plot_performance_data(performance_data)      #populates self.result_plot_images (or not)
 
         if not self.result_plot_images:
-            # Not enough points or some guard tripped inside plotter
+            #Not enough points or some guard tripped inside plotter
             self.plot_image_label.config(image="", text="No performance data available to plot.")
             self.plot_image_label.image = None
 
-        # Navigate to Results
+        #Navigate to Results
         self.show_results()
 
     def show_results(self):
@@ -1944,7 +1874,7 @@ class ARIanaApp:
         try:
             self.root.mainloop()
         finally:
-            # Ensure cleanup happens even if mainloop exits unexpectedly
+            #Ensure cleanup happens even if mainloop exits unexpectedly
             print("Cleaning up manometer connection...")
             self.manometer_thread.stop()
             if self.manometer_thread.is_alive():
@@ -1956,7 +1886,7 @@ class ARIanaApp:
                 msg_type, *values = self.manometer_queue.get_nowait()
                 if msg_type == "status":
                     status_text = values[0]
-                    # Combine "Connecting..." and "Handshaking..." into a single "Connecting..." status, quick fix
+                    #Combine "Connecting..." and "Handshaking..." into a single "Connecting..." status, quick fix
                     if status_text == "Handshaking...":
                         status_text = "Connecting..."
 
@@ -1964,28 +1894,28 @@ class ARIanaApp:
                     if status_text == "Connecting...":
                         self.manometer_status_label.config(foreground="yellow")
                     elif status_text == "Connected":
-                        self.manometer_status_label.config(foreground="green") # Changed to green
-                    else: # Disconnected
+                        self.manometer_status_label.config(foreground="green") #Changed to green
+                    else: #Disconnected
                         self.manometer_status_label.config(foreground="red")
-                        self.manometer_pressure = 0 # Reset pressure on disconnect
+                        self.manometer_pressure = 0 #Reset pressure on disconnect
                 elif msg_type == "pressure":
                     pressure_mmhg = values[0]
                     original_unit_name = values[1]
                     unit_code = values[2]
 
                     self.manometer_pressure = pressure_mmhg
-                    # Update pressure display if manometer is active
+                    #Update pressure display if manometer is active
                     if not self.virtual_slider_var.get():
                         display_text = f"Connected: {self.manometer_pressure} mmHg"
-                        if unit_code != 0x05: # If not already mmHg
-                            self.manometer_status_label.config(text=f"Connected: {self.manometer_pressure} mmHg (from {original_unit_name})", foreground="green") # Still green
+                        if unit_code != 0x05: #If not already mmHg
+                            self.manometer_status_label.config(text=f"Connected: {self.manometer_pressure} mmHg (from {original_unit_name})", foreground="green") #Still green
                         else:
-                            self.manometer_status_label.config(text=display_text, foreground="green") # Still green
+                            self.manometer_status_label.config(text=display_text, foreground="green") #Still green
 
         except queue.Empty:
-            pass # No messages in queue
+            pass #No messages in queue
         finally:
-            self.root.after(100, self.check_manometer_queue) # Check again in 100ms
+            self.root.after(100, self.check_manometer_queue) #Check again in 100ms
 
 if __name__ == "__main__":
     app = ARIanaApp()
