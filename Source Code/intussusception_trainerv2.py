@@ -867,9 +867,10 @@ class ARIanaApp:
         self.check_manometer_queue()
 
 
-    def create_widgets(self):        
+    def create_widgets(self):
         self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)        
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.notebook.configure(state='disabled')
         self.disclaimer_frame = ttk.Frame(self.notebook)
         self.startup_frame = ttk.Frame(self.notebook)
         self.pre_operation_frame = ttk.Frame(self.notebook) # New frame
@@ -892,11 +893,6 @@ class ARIanaApp:
         # Tab-aware spacebar behavior: Simulation = capture; others = do nothing
         self.notebook.bind("<<NotebookTabChanged>>", self._on_tab_changed)
 
-        # Disable tab switching by unbinding events
-        self.notebook.bind('<Button-1>', lambda event: 'break') # Prevent mouse clicks on tabs
-        self.notebook.bind('<B1-Motion>', lambda event: 'break') # Prevent dragging tabs
-        self.notebook.bind('<ButtonRelease-1>', lambda event: 'break') # Prevent releasing mouse on tabs
-
         self.create_disclaimer_screen()
         self.create_startup_screen()
         self.create_pre_operation_screen() # New call
@@ -906,32 +902,23 @@ class ARIanaApp:
         # Apply initial spacebar behavior for the initially selected tab
         self._on_tab_changed()
 
+        # Prevent spacebar from "clicking" any buttons anywhere
+        self.root.bind_class("TButton", "<space>", lambda e: "break")
+        self.root.bind_class("TCheckbutton", "<space>", lambda e: "break")
+        self.root.bind_class("Button", "<space>", lambda e: "break")  # if you use tk.Button anywhere
+
     def _on_tab_changed(self, event=None):
-        """Only allow spacebar to trigger fluoroscopy on the Simulation tab."""
-        # Clear any previous global binding
+        """Spacebar behavior: only active in Simulation."""
         try:
             self.root.unbind_all("<space>")
         except Exception:
             pass
-
         current_tab = self.notebook.tab(self.notebook.select(), "text")
-
         if current_tab == "Simulation":
-            # Let the spacebar reach our global handler even if a Button has focus
-            for cls in ("TButton", "TCheckbutton", "Button"):
-                try:
-                    self.root.unbind_class(cls, "<space>")
-                except Exception:
-                    pass
-            # Bind space globally to take a fluoro image; return "break" in handler already stops default
             self.root.bind_all("<space>", self.take_fluoro_image)
         else:
-            # On non-Simulation tabs: swallow space globally
+            # Swallow the spacebar everywhere else (e.g., Pre-Operation)
             self.root.bind_all("<space>", lambda e: "break")
-            # And explicitly prevent Buttons/Checks from activating on space
-            for cls in ("TButton", "TCheckbutton", "Button"):
-                self.root.bind_class(cls, "<space>", lambda e: "break")
-
 
     def create_pre_operation_screen(self):
         main_frame = ttk.Frame(self.pre_operation_frame)
@@ -1019,7 +1006,6 @@ class ARIanaApp:
 
     def show_pre_operation(self):
         self.notebook.select(self.pre_operation_frame)
-        self._on_tab_changed() 
         if self.current_case:
             pre_images = self.current_case.get("images", {}).get("preprocedure", [])
             self.pre_op_image_scroller.set_images(pre_images)
@@ -1681,7 +1667,6 @@ class ARIanaApp:
     def show_startup(self):
         self.load_cases_into_tree()
         self.notebook.select(self.startup_frame)
-        self._on_tab_changed() 
     
     def show_simulation(self):
         self.pressure_var.set(0.0)
@@ -1693,7 +1678,6 @@ class ARIanaApp:
         self.warning_label.config(text="")
 
         self.notebook.select(self.simulation_frame)
-        self._on_tab_changed() 
         
         # Reset all visibility checkboxes to checked and update labels
         for name in self.visibility_vars.keys():
@@ -1724,14 +1708,8 @@ class ARIanaApp:
         # Stop the engine
         self.simulator.stop_simulation()
 
-        # collect data once
+        # ollect data once
         performance_data = self.simulator.get_performance_data()
-
-        # If user ends while perforation is active but auto-end hasn't fired yet,
-        # force a clear outcome for the Results header.
-        if outcome_override is None and self.simulator.is_perforated and self.simulator.perforation_timer_active:
-            outcome_override = "Perforation Occurred And Was Recognized"
-
         if not performance_data:
             # Nothing to show; still navigate to Results with a minimal summary
             self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_override or self.simulator.last_outcome}")
@@ -1749,7 +1727,7 @@ class ARIanaApp:
             self.current_case.get("parameters", {}).get("contraindication_start", 0) == 1
         )
         called_surgery_in_preop = (
-            outcome_override == "Patient Sent to Surgery Before Operation"
+            outcome_override == "Patient Sent to Surgery"
             and getattr(self, "called_surgery_from_preop", False)
         )
 
@@ -1799,7 +1777,6 @@ class ARIanaApp:
 
     def show_results(self):
         self.notebook.select(self.results_frame)
-        self._on_tab_changed() 
 
     def run(self):
         try:
