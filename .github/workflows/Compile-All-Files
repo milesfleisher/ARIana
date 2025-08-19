@@ -17,6 +17,6 @@ jobs:
     secrets: inherit
 
   run-deploy:
-    uses: ./.github/workflows/build-windows-single-file.yml
+    uses: ./.github/workflows/build-windows.yml
     permissions: inherit
     secrets: inherit
