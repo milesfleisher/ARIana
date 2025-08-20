@@ -42,7 +42,7 @@ DEFAULT_PREOP_CHECKLIST = (
 
 PREOP_FILENAME = "preop_checklist.txt"
 
-#Manometer Constants (extracted from read_hd700.py)
+#manometer constants
 UNIT_CONVERSIONS_TO_MMHG = {
     0x00: 750.062,  #1 bar = 750.062 mmHg
     0x01: 3.23218,  #1 oz/in^2 = 3.23218 mmHg (Corrected)
@@ -85,23 +85,10 @@ def _data_root() -> Path:
             return res
     return prog_dir
 
-def _app_dir() -> Path:
-    #"Folder the .py file is in"
-    try:
-        return Path(__file__).resolve().parent
-    except NameError:
-        #Fallback if __file__ is not set
-        return Path(sys.argv[0]).resolve().parent
-
-def _checklist_file_path() -> Path:
-    return _app_dir() / PREOP_FILENAME
-
 def _load_preop_checklist_text():
     p = _checklist_path()
-    print(f"[DEBUG] Checklist path: {p}")
     try:
         txt = p.read_text(encoding="utf-8")
-        print(f"[DEBUG] Loaded checklist ({len(txt)} bytes)")
         return txt
     except FileNotFoundError:
         #Create a default in-place
@@ -1089,8 +1076,6 @@ class ARIanaApp:
             self.pre_op_image_scroller.set_images(pre_images)
 
     def start_simulation_from_pre_op(self):
-        #move check here
-
         dontstart = self.current_case.get("parameters", {}).get("dontstart", 0)
         if dontstart == 1:
             messagebox.showinfo("Contraindication", "There was a contraindication. Intussusception is not recommended. The patient should be sent into surgery")
@@ -1107,14 +1092,14 @@ class ARIanaApp:
         messagebox.showinfo("Vitals and Medical History", wrapped_text)
 
     def create_disclaimer_screen(self):
-        #Centered group: title + body (centered as a unit)
+        # Centered group: title + body (centered as a unit)
         self._disc_center = ttk.Frame(self.disclaimer_frame)
         self._disc_center.pack(expand=True)
 
         self.disclaimer_title = ttk.Label(
             self._disc_center,
-            text="ARIana Intussusception Simulator",
-            font=("Arial", 21, "bold"),
+            text="\n\nARIana Intussusception Simulator",
+            font=("Arial", 19),
             justify="center",
             anchor="center",
         )
@@ -1135,25 +1120,49 @@ class ARIanaApp:
             "program."
         )
 
-        #Build the label with the text we loaded
         self.disclaimer_label = ttk.Label(
             self._disc_center,
             text=disclaimer_text,
-            font=("Arial", 16),
+            font=("Arial", 14),
             wraplength=900,
             justify="center",
             anchor="center",
         )
         self.disclaimer_label.pack(padx=24, pady=(0, 0), fill=tk.X)
 
-        #Buttons pinned to bottom (keep your existing code)
+        # Frame for disclaimer text (fills most of the window)
+        self.disclaimer_text_frame = ttk.Frame(self.disclaimer_frame)
+        self.disclaimer_text_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.disclaimer_label.pack(expand=True)
+
+        # Bottom frame (buttons + centered credits)
         self.disclaimer_button_frame = ttk.Frame(self.disclaimer_frame)
         self.disclaimer_button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=10)
-        ttk.Button(self.disclaimer_button_frame, text="I Agree", command=self.show_startup).pack(side=tk.LEFT, padx=10)
-        ttk.Button(self.disclaimer_button_frame, text="Decline", command=self.root.quit).pack(side=tk.LEFT, padx=10)
+
+        # Full-width bar so credits truly center to the window
+        credits_bar = ttk.Frame(self.disclaimer_button_frame)
+        credits_bar.pack(fill=tk.X)
+
+        self.disclaimer_credits = ttk.Label(
+            credits_bar,
+            text=("© 2025 Team Intussusception\n"
+                  "S.K. Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexler, M. Fleisher"),
+            font=("Arial", 12),
+            justify="center",
+            anchor="center",
+        )
+        self.disclaimer_credits.pack(anchor="center")
+
+        # Left-aligned buttons, vertically aligned to the credits' center line
+        buttons_bar = ttk.Frame(self.disclaimer_button_frame)
+        buttons_bar.place(in_=credits_bar, relx=0.0, rely=0.5, anchor="w", x=10)
+        ttk.Button(buttons_bar, text="I Agree", command=self.show_startup).pack(side=tk.LEFT, padx=(0, 6))
+        ttk.Button(buttons_bar, text="Decline", command=self.root.quit).pack(side=tk.LEFT)
 
         self.disclaimer_frame.bind("<Configure>", self._resize_disclaimer, add="+")
         self._resize_disclaimer()
+
 
     def _resize_disclaimer(self, event=None):
         """Responsive sizing for disclaimer without introducing vertical gaps."""
@@ -1264,8 +1273,6 @@ class ARIanaApp:
 
         for case in self.all_cases_data:
             desc = case["description"] or ""
-            #Add newline padding so there's a gap between cases
-            #desc = desc.rstrip() + "\n\n\n\n\n\n\n\n\n\n\n\n"
             self._raw_descs[case["id"]] = desc
             self.case_list_tree.insert("", tk.END, iid=case["id"], values=(case["name"], desc))
 
@@ -1461,7 +1468,7 @@ class ARIanaApp:
         
         #Add red warning text underneath visibility settings
         self.warning_label = tk.Label(left_panel, text="", fg="red", font=("Arial", 16, "bold"), wraplength=300, justify="left", relief="flat", bd=0)
-        #Don't pack it yet — wait until text is shown
+        #Don't pack yet — wait until text is shown
      
         self.image_label = ttk.Label(right_panel, anchor="center")
         
@@ -1669,7 +1676,6 @@ class ARIanaApp:
 
         #Create a Pillow image from the RGBA buffer without copying
         img = Image.frombuffer("RGBA", (w, h), buf, "raw", "RGBA", 0, 1)
-        #If you want RGB (no transparency), convert here
         img = img.convert("RGB")
 
         photo = ImageTk.PhotoImage(img)
@@ -1863,7 +1869,7 @@ class ARIanaApp:
             self.root.mainloop()
         finally:
             #Ensure cleanup happens even if mainloop exits unexpectedly
-            print("Cleaning up manometer connection...")
+            #print("Cleaning up manometer connection...")
             self.manometer_thread.stop()
             if self.manometer_thread.is_alive():
                 self.manometer_thread.join(timeout=1.0)
