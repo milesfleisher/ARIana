@@ -160,7 +160,7 @@ class ManometerThread(threading.Thread):
 
         for port in serial.tools.list_ports.comports():
             # Print debug info for all ports (keep this for diagnostics)
-            print(f"Found port: {port.device}, VID: {hex(port.vid) if port.vid else 'N/A'}, PID: {hex(port.pid) if port.pid else 'N/A'}, Product: {port.product}, HWID: {port.hwid}")
+            #print(f"Found port: {port.device}, VID: {hex(port.vid) if port.vid else 'N/A'}, PID: {hex(port.pid) if port.pid else 'N/A'}, Product: {port.product}, HWID: {port.hwid}")
 
             # Primary identification: always check VID and PID
             if port.vid == target_vid and port.pid == target_pid:
