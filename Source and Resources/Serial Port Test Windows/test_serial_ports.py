@@ -1,7 +1,7 @@
 import serial.tools.list_ports
 
 print("Available serial ports:")
-ports = serial.tools.list_list_ports.comports()
+ports = serial.tools.list_ports.comports()
 if not ports:
     print("  No serial ports found.")
 for port in ports:
