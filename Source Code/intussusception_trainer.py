@@ -159,6 +159,8 @@ class ManometerThread(threading.Thread):
         matching_ports = []
 
         for port in serial.tools.list_ports.comports():
+            print(f"Found port: {port.device}, VID: {hex(port.vid) if port.vid else 'N/A'}, PID: {hex(port.pid) if port.pid else 'N/A'}, Product: {port.product}, HWID: {port.hwid}")
+
             if (
                 port.vid == target_vid and
                 port.pid == target_pid and
