@@ -154,40 +154,27 @@ class ManometerThread(threading.Thread):
     def find_cp2102_port(self):
         target_vid = 0x10C4
         target_pid = 0xEA60
+        target_product = "CP2102 USB to UART Bridge Controller"
 
-        # List to store all ports matching VID/PID
         matching_ports = []
 
         for port in serial.tools.list_ports.comports():
-            # Print debug info for all ports (keep this for diagnostics)
             print(f"Found port: {port.device}, VID: {hex(port.vid) if port.vid else 'N/A'}, PID: {hex(port.pid) if port.pid else 'N/A'}, Product: {port.product}, HWID: {port.hwid}")
 
-            # Primary identification: always check VID and PID
-            if port.vid == target_vid and port.pid == target_pid:
+            if (
+                port.vid == target_vid and
+                port.pid == target_pid and
+                port.product == target_product
+            ):
                 matching_ports.append(port.device)
 
-        if not matching_ports:
-            return None
+        #Prefer /dev/cu.usbserial-0001 if available
+        for dev in matching_ports:
+            if "usbserial-0001" in dev:
+                return dev
 
-        # OS-specific prioritization and selection
-        # sys is already imported at the top of the file
-        if sys.platform.startswith("darwin"):  # macOS
-            # On macOS, prefer /dev/cu.usbserial-XXXX if available
-            # This handles hotswapping and different instances of the device
-            for dev in matching_ports:
-                if "usbserial" in dev:
-                    return dev
-            # Fallback to any other matching port if usbserial isn't found
-            return matching_ports[0]
-        elif sys.platform.startswith("win"):  # Windows (Win10, Win11)
-            # On Windows, the COM port name is sufficient once VID/PID match.
-            # The order from comports() is usually stable enough, or the first match is fine.
-            # The 'product' field being None on Windows is now handled by not checking it here.
-            return matching_ports[0]
-        else:
-            # For other OS (Linux, etc.), return the first found matching port
-            return matching_ports[0]
-
+        #Otherwise just return the first match
+        return matching_ports[0] if matching_ports else None
 
     def run(self):
         while self._running:
