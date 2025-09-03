@@ -1435,9 +1435,11 @@ class ARIanaApp:
 
         self.pressure_frame = ttk.Frame(self.pressure_input_frame)
         ttk.Label(self.pressure_frame, text="Pressure (mmHg):").pack(side=tk.LEFT)
-        #self.pressure_display_label = ttk.Label(self.pressure_frame, text="0", width=4)
+ 
+        self.pressure_display_label = ttk.Label(self.pressure_frame, text="0", width=4)
         #self.pressure_display_label.pack(side=tk.RIGHT)
         self.pressure_scale = ttk.Scale(self.pressure_frame, from_=0, to=180, orient=tk.HORIZONTAL, variable=self.pressure_var, command=lambda v: self.on_pressure_change(v, self.pressure_display_label))
+
         self.pressure_scale.pack(side=tk.RIGHT, fill="x", expand=True)
 
         #Manometer Status and Pressure Display
