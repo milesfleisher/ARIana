@@ -1456,7 +1456,7 @@ class ARIanaApp:
         status_frame.pack(pady=10, fill="x")
         
         status_frame.grid_columnconfigure(1, weight=1)
-        for i, status_name in enumerate(["Stage", "Sim Time", "Pressure", "Fluoro Time", "Outcome"]):
+        for i, status_name in enumerate(["Pressure", "Sim Time", "Stage", "Fluoro Time", "Outcome"]):
             row_frame = ttk.Frame(status_frame) #Use a frame for each row
             row_frame.grid(row=i, column=0, columnspan=2, sticky="ew")
             row_frame.grid_columnconfigure(1, weight=1)
@@ -1627,9 +1627,9 @@ class ARIanaApp:
 
         #Expect regular outcome dictionary
         try:
-            self.status_label_last_values["Stage"] = str(result["current_stage"])
-            self.status_label_last_values["Sim Time"] = f'{result["sim_time"]:.1f}s'
             self.status_label_last_values["Pressure"] = "{:.0f} mmHg".format(result["pressure"])
+            self.status_label_last_values["Sim Time"] = f'{result["sim_time"]:.1f}s'
+            self.status_label_last_values["Stage"] = str(result["current_stage"])  
             self.status_label_last_values["Fluoro Time"] = f'{result["fluoro_time"]:.0f}s'
             self.status_label_last_values["Outcome"] = result["outcome"]
 
