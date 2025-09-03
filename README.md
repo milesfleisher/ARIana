@@ -129,7 +129,7 @@ These are the possible outcomes of the case:
 
 ### Troubleshooting:
 
-If you would like more information, you can read the original documentation for the closed source version of ARIana. While this app was slightly different and based on MATLAB, a lot of the core logic and information is very similar. Note that the support email given is no longer monitored. Instead, please post in the *Discussion* section of this Github. 
+If you would like more information, you can read the [*original documentation*](https://github.com/milesfleisher/ARIana/blob/main/Source%20and%20Resources/Original%20Documentation/Original_ARIana_Manual.pdf) for the closed source version of ARIana. While this app was slightly different and based on MATLAB, a lot of the core logic and information is very similar. Note that the support email given is no longer monitored. Instead, please post in the *Discussion* section of this Github. 
 
 ### Why Is It Not Starting\!? – Troubleshooting:
 
