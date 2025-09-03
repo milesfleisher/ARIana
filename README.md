@@ -1,6 +1,6 @@
 ## ARIana (Python/Tk)
 
-### A cross-platform simulator for teaching air-enema reduction of pediatric intussusception.
+## A cross-platform simulator for teaching air-enema reduction of pediatric intussusception.
 
 ### Disclaimer
 
@@ -57,14 +57,12 @@ repo/
 Windows:  
 Go into the folder holding ARIana.exe, find *preop\_checklist.txt, and* open this file in your text editor of choice, make changes to it, and save it. Make sure that you save the file as a .txt and don’t duplicate the original. Note that some special characters may not be supported and can cause issues with the graphical interface. Reloading the app may be required for changes to take effect. 
 
-Mac:
-
+Mac:  
 Right click on the ARIana app and click “Show Package Contents.” Navigate to *preop\_checklist.txt* and open the file in your text editor of choice, make changes to it, and save it. Make sure that you save the file as a .txt and don’t duplicate the original. Note that some special characters may not be supported and can cause issues with the graphical interface. Reloading the app may be required for changes to take effect. 
 
 ### Adding you own cases:
 
-Windows: 
-
+Windows:   
 Go into the folder holding ARIana.exe, find the folder named “Placeholder.” Don’t include spaces in the name of your folder. Copy this folder and rename it to the name of your patient/case. This is an extremely important step as the app will ignore folders named “Placeholder.” Enter this folder and rename the placeholder\_metadata.json to \<patient name\>\_metadata.json(the brackets should not be included; they are only there to emphasize the part of the name that should be replaced with the name of the case). Make sure that the name of the .json file and the name of the folder containing it match. Go into the *Images* folder and replace the images in each of the three folders (*Preoperation, Simulation,* and *Postoperation).* Make sure that you use the same naming convention as the placeholder images: \<Foldername\>\_\<imagenumber\>.png. The image number dictates the order that images will be shown and, in the simulation folder, the order stage that an image will be associated with. If you have a perforation image, add it to the Images folder as the final image. You can also use any of the images from the included cases to create your new cases with new probabilities or features. Please make sure that all images are formatted as .png. 
 
 Now that you have renamed the folder, .json, and added your own images, it’s time to edit the .json file. Open the .json file in any text editor. Make sure that the “*num stages”* value is set to the number of images in the Simulation folder, otherwise, some of the images may not display. The following is a list of values in the .json file and what they control. 
@@ -155,4 +153,3 @@ Potential problems:
    a. 	In a closed system, the pressures would be identical. However, since the instructor creates a small air leak in the system with the control valve, there is a small difference in pressure. The program accounts for this with a “fudge factor.”
 
  **If you encounter an issue that is not described above and prevents the simulator from working properly, please contact us in the [GitHub Discussion forums](https://github.com/milesfleisher/ARIana/discussions).**
-
