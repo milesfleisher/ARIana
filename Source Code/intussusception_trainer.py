@@ -528,13 +528,13 @@ class IntussusceptionSimulator:
         if not self.is_running:
             return {"result": "not_running"}
         #default max fluoro time is 120s but that can be changed
-        max_fluoro_time = self.case_data.get("parameters", {}).get("max_fluoro_time", 120)
+        max_fluoro_time = self.case_data.get("parameters", {}).get("max_fluoro_time", 300)
         if self.fluoro_time >= max_fluoro_time:
             return {"result": "radiation_overdose"}
 
         #Increment fluoro time every second
-        if self.sim_time-self.last_fluoro_time >=1:
-            self.fluoro_time += 1
+        if self.sim_time-self.last_fluoro_time >= 2:
+            self.fluoro_time += 2
             self.last_fluoro_time = self.sim_time
 
         image_path = self.get_image_for_stage(self.current_stage)
