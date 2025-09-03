@@ -1016,7 +1016,7 @@ class ARIanaApp:
         left_panel.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 10))
         left_panel.pack_propagate(False)  #keep the fixed width
 
-        ttk.Button(left_panel, text="Start Intussusception",
+        ttk.Button(left_panel, text="Start Air Enema Reduction",
                 command=self.start_simulation_from_pre_op).pack(pady=8, fill="x")
         ttk.Button(left_panel, text="Call for Surgery",
                 command=self.call_for_surgery).pack(pady=8, fill="x")
@@ -1093,7 +1093,7 @@ class ARIanaApp:
     def start_simulation_from_pre_op(self):
         dontstart = self.current_case.get("parameters", {}).get("dontstart", 0)
         if dontstart == 1:
-            messagebox.showinfo("Contraindication", "There was a contraindication. Intussusception is not recommended. The patient should be sent into surgery")
+            messagebox.showinfo("Contraindication", "There was a contraindication. Air enema reduction is not recommended. The patient should be sent into surgery")
             self.end_simulation(outcome_override="Contraindication Was Not Recognized")
             return #Prevent simulation from starting
         self.show_simulation()
@@ -1594,7 +1594,7 @@ class ARIanaApp:
             return "break"
         elif result["result"] == "radiation_overdose":
             messagebox.showerror("Radiation Overdose", "Radiation limit exceeded! Simulation ended.")
-            self.end_simulation(outcome_override="Radiation limit exceeded!")
+            self.end_simulation(outcome_override="Radiation limit exceeded")
         else:
             self.display_image(result["image_path"])
         self.root.focus_set()
@@ -1644,8 +1644,8 @@ class ARIanaApp:
                 self.end_simulation(outcome_override="Patient Perforated and Vitals Crashed")
 
             elif result["outcome"] == "Time Limit 5 Min":
-                messagebox.showerror("Time Limit Exceeded", "The patient has undergone insufflation for 5 minutes. This is past the maximum recommended time, the simulation will now end.")
-                self.end_simulation(outcome_override="Excessive Insufflation Occurred")
+                messagebox.showerror("Time Limit Exceeded", "The patient has undergone air enema reduction for 5 minutes. This is past the maximum recommended time, the simulation will now end.")
+                self.end_simulation(outcome_override="Excessive Air Enema Reduction Occurred")
 
         except KeyError as e:
             print(f"Malformed result received in update_simulation_status: missing {e}")
