@@ -1435,8 +1435,8 @@ class ARIanaApp:
 
         self.pressure_frame = ttk.Frame(self.pressure_input_frame)
         ttk.Label(self.pressure_frame, text="Pressure (mmHg):").pack(side=tk.LEFT)
-        self.pressure_display_label = ttk.Label(self.pressure_frame, text="0", width=4)
-        self.pressure_display_label.pack(side=tk.RIGHT)
+        #self.pressure_display_label = ttk.Label(self.pressure_frame, text="0", width=4)
+        #self.pressure_display_label.pack(side=tk.RIGHT)
         self.pressure_scale = ttk.Scale(self.pressure_frame, from_=0, to=180, orient=tk.HORIZONTAL, variable=self.pressure_var, command=lambda v: self.on_pressure_change(v, self.pressure_display_label))
         self.pressure_scale.pack(side=tk.RIGHT, fill="x", expand=True)
 
@@ -1915,9 +1915,9 @@ class ARIanaApp:
                     self.manometer_pressure = pressure_mmhg
                     #Update pressure display if manometer is active
                     if not self.virtual_slider_var.get():
-                        display_text = f"Connected: {self.manometer_pressure} mmHg"
+                        display_text = f"Connected: reading from mmHg"
                         if unit_code != 0x05: #If not already mmHg
-                            self.manometer_status_label.config(text=f"Connected: {self.manometer_pressure} mmHg (from {original_unit_name})", foreground="green") #Still green
+                            self.manometer_status_label.config(text=f"Connected: reading mmHg from {original_unit_name}", foreground="green") #Still green
                         else:
                             self.manometer_status_label.config(text=display_text, foreground="green") #Still green
 
