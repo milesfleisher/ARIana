@@ -1,557 +1,158 @@
-# ARIana (Python/Tk)
+## ARIana (Python/Tk)
 
-*A cross-platform simulator for teaching air-enema reduction of pediatric intussusception.*
+### A cross-platform simulator for teaching air-enema reduction of pediatric intussusception.
 
-> **Training use only.** This simulator supplements—**does not replace**—supervised, real-patient experience under a trained pediatric radiologist.
+### Disclaimer
 
----
+This device is designed to help a trained pediatric radiologist teach a trainee the basics of reducing an intussusception with an air enema. It is intended to supplement rather than replace the experience of performing a supervised intussusception reduction on an actual patient. In other words, a trainee who has used this simulator a few times should not consider himself competent to perform an intussusception reduction in the absence of any further experience. There are nuances of the intussusception reduction procedure that are not within the scope of this device and which can only be gained through practical experience under the watchful eye of a trained pediatric radiologist.
 
+### History
 
+ARIana was originally a closed source app coded in MATLAB. The original app was a product of Lucy LLC created by S.K. Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexler. The original MATLAB version was discontinued, but the demand for a computer-based intussusception simulator remained. This is a new version of ARIana that has used the original MATLAB file as inspiration. Miles Fleisher created this new, open source, Python/Tkinter version with help from the original creators. In addition to porting from MATLAB to Python/Tkinter, some additional functionality has been added, as well as more cross-platform support.
 
-## Table of Contents
-- [What’s New](#whats-new)
-- [Requirements](#requirements)
-- [Quick Start (Run From Source)](#quick-start-run-from-source)
-- [Folder Layout](#folder-layout)
-- [Case Metadata JSON Schema](#case-metadata-json-schema)
-- [Workflow](#workflow)
-  - [1) Disclaimer](#1-disclaimer)
-  - [2) Case Selection](#2-case-selection)
-  - [3) Pre-Operation](#3-pre-operation)
-  - [4) Simulation](#4-simulation)
-  - [5) Results](#5-results)
-- [Hardware Setup (Optional Manometer)](#hardware-setup-optional-manometer)
-- [Keyboard & Interaction](#keyboard--interaction)
-- [Safety Timers & Outcomes](#safety-timers--outcomes)
-- [Case Engine Details](#case-engine-details)
-- [Results & Plotting Details](#results--plotting-details)
-- [Building From Source (macOS • Windows • Linux)](#building-from-source-macos--windows--linux)
-  - [macOS — Nuitka `.app` + DMG](#macos--nuitka-app--dmg)
-  - [Windows — Nuitka (or PyInstaller)](#windows--nuitka-or-pyinstaller)
-  - [Linux — Run or Build](#linux--run-or-build)
-- [Common Gotchas](#common-gotchas)
-- [Troubleshooting](#troubleshooting)
-- [Attribution & Provenance](#attribution--provenance)
-- [License](#license)
+### Downloading:
 
----
+Operating System Versions Supported:  
+ARIana currently supports Windows 7 or later and macOS 10.9 or later. There is also a Linux version available but it is currently in testing. If you are using an unsupported operating system, you are also welcome to compile for yourself using the Python files in the Source Code folder. Niutika is the recommended compiler. There are .yml files that include Niutika commands for Windows, Mac, and Linux, which can be used to compile your own version. 
 
+Windows:  
+Go to the App Downloads folder and download *ARIana-Windows-Installer.zip*. Place the folder in a read/write folder and extract the zip file. **Do not remove the ARIana.exe file from the folder.** If you would like to put the app somewhere else, instead, create a shortcut by right clicking and pressing “Create a shortcut” and drag the created shortcut to your preferred location. Double click this shortcut to launch ARIana.exe. The first time you launch ARIana, it may say “Windows Protected Your PC. Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.” This can be safely ignored–the error occurs because, since this app is open source and doesn’t generate profit, it wasn’t signed under a paid Microsoft license. This issue can be easily fixed by clicking   
+the small “more info” link and then clicking “Run anyway.” After doing this once, the warning should not show up again. 
 
+On Windows, it is important to make sure that you have the correct drivers and that they’re up to date. This app is designed to work with an Extech HD 750 Differential Manometer, which uses a CP2102 USB to UART Bridge. The drivers for this bridge are available from [Silicon Labs](https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers?tab=downloads). If you are on Windows 10 (build 1803\) or older (like Windows 9, 8, and 7), it’s recommended to install the Windows VCP driver. If you’re on Windows 10 (build 1803\) or higher, it’s recommended to install the Windows Universal Driver. If you are on Windows 10 but don’t know if you’re before or after version 1803, you can type *winver* into the Command Prompt and it will take you to a page listing the build number. If the build number is greater than or equal to 17134, then you are on a new version of Windows and should install the Universal driver [here](https://www.silabs.com/documents/public/software/CP210x_Universal_Windows_Driver.zip). If the build number is smaller than 17134, you are on an older build of Windows and should install the VCP driver [here](https://www.silabs.com/documents/public/software/CP210x_VCP_Windows.zip). To check if your driver is up to date, go to the *Device Manager* app, click view, verify “show hidden” is enabled, and expand “Ports (COM & LPT).” The driver should be called “Silicon Labs CP210x USB to UART Bridge (COMx).” Right click on the driver, click “Properties,” and go into the Drivers tab. Note the Driver Version and Driver Date and compare them to the latest available on Silicon Labs’ website. As long as your driver is in the same major version as the ones listed below (v11 for the universal driver or v6.7 for the VCP driver), it should probably be fine but, if you are having trouble connecting to the manometer, it might be worth updating. As of 9/3/25, the latest drivers are as shown below:
 
-## What’s New
+- *v11.4.0 → Current Universal driver (for Win10 1803+ / Win11).*  
+- *v6.7 (2020) → Latest legacy VCP driver (for Win7/8/early 10).*
 
-- Cross-platform desktop app (macOS, Windows, Linux) using **Tkinter/ttk**.
-- Optional **hardware manometer** via USB-serial (CP2102) with live pressure in **mmHg**.
-- **Virtual Pressure** mode (slider + numeric entry) when hardware isn’t connected.
-- Tabbed workflow: *Disclaimer → Case Selection → Pre-Operation → Simulation → Results*.
-- **Configurable case engine** via JSON: stages, risk curves, safety limits.
-- Results view with **pressure-vs-time plot**, stage progression, and post-procedure images.
-- Built-in safety timing: **3-minute warning**, **5-minute hard stop**, and per-case **fluoroscopy cap**.
+The first time you run the app, you may experience a longer loading time than usual. This is because the app is generating multiple setting files. The app may also give you some alerts that say that the “checklist file could not be found.” As long as the alert doesn’t say that the “file couldn’t be created,” this is not an issue and can safely be ignored. On future startups, the app should load much faster. 
 
----
+Mac:  
+Go to the App Downloads folder and download *ARIana-Mac-Installer.dmg*. Open the .dmg file and drag the ARIana app to your Applications folder. You may then safely eject the ARIana.dmg. 
 
+The first time you run the app, you may experience a longer loading time than usual. This is because the app is generating multiple setting files. The app may also give you some alerts that say that the “checklist file could not be found.” As long as the alert doesn’t say that the “file couldn’t be created,” this is not an issue and can safely be ignored. On future startups, the app should load much faster. 
 
+When launching the app for the first time, you may receive a warning that “the app cannot be scanned for malware.” This is not an issue and it can be safely ignored. This warning is because the app was not signed with the Apple Developer License. The warning can be bypassed by first going to *System Preferences\>Security*, scrolling down to the bottom. Next, find the warning that says “ARIana was blocked to protect your Mac.” Click *Open Anyway*, and give your admin password. After you’ve done this once, the app should run as expected in the future. 
 
-## Requirements
+### Folder Layout:
 
-- **Python:** 3.9–3.12 recommended
-- **GUI:** Tk/Tkinter (bundled with python.org installers on macOS & Windows; `python3-tk` on many Linux distros)
-- **Packages (runtime):**
-  - `numpy`, `scipy`, `matplotlib`, `Pillow`, `pyserial`
-- **Packages (for building binaries):**
-  - `nuitka` (recommended), `ordered-set`, `zstandard`
-  - *(Windows alternative)* `pyinstaller`
+The files in this GitHub are laid out as follows. \<CaseID\> is a placeholder for the names of different cases/patients. 
 
-> If you will interface with hardware, the manometer should enumerate as **Silicon Labs CP2102** (USB–UART).
-
----
-
-
-
-## Quick Start (Run From Source)
-
-To get started quickly, follow these steps to run ARIana from its source code:
-
-```bash
-# 1) Clone & enter the repo
-git clone <your-repo-url>.git
-cd <your-repo>
-
-# 2) Create & activate a virtual environment
-python3 -m venv .venv
-# macOS/Linux:
-source .venv/bin/activate
-# Windows:
-# .venv\Scripts\activate
-
-# 3) Install dependencies
-pip install -U pip
-pip install numpy scipy matplotlib Pillow pyserial
-
-# 4) Run the app
-python ARIana.py
-# If your entry file is different (e.g., intussusception_trainer.py), run that instead.
-```
-
----
-
-
-
-## Folder Layout
-
-The project's folder structure is organized as follows:
-
-```
-repo/
-├─ ARIana.py                      # Main application entry point (or intussusception_trainer.py)
-├─ Patients/
-│  └─ <CaseID>/
-│     ├─ <CaseID>_metadata.json   # Case parameters (see schema below)
-│     └─ Images/
-│        ├─ Preprocedure/         # Pre-procedure images (e.g., preprocedure_1.png)
-│        ├─ Simulation/           # Simulation images (e.g., simulation_1.png)
-│        └─ Postprocedure/        # Post-procedure images (e.g., postprocedure_1.png)
-├─ ARIana_logo.png                # Application icon/branding
+Folder Layout  
+The project's folder structure is organized as follows:  
+Plain Text  
+repo/  
+├─ ARIana.py \# Main application entry point for logic file(intussusception\_trainer.py)  
+├─ Patients/  
+│ └─ \<CaseID\>/  
+│ ├─ \<CaseID\>\_metadata.json \# Case parameters (see schema below)  
+│ └─ Images/  
+│       ├─ Preprocedure/ \# Pre-procedure images (e.g.,preprocedure\_1.png)  
+│       ├─ Simulation/ \# Simulation images (e.g.,simulation\_1.png)  
+│       └─ Postprocedure/ \# Post-procedure images (e.g.,postprocedure\_1.png)  
+├─ ARIana\_logo.png \# Application icon/branding  
 └─ README.md
-```
 
-**Image Naming Rules:**
+### Adding your own preoperation checklist
 
-- Use the exact names shown above; numbering for images should be contiguous from 1 (e.g., `preprocedure_1.png`, `preprocedure_2.png`).
-- Any reasonable clinical resolution is supported; the UI scales images to the window size.
+Windows:  
+Go into the folder holding ARIana.exe, find *preop\_checklist.txt, and* open this file in your text editor of choice, make changes to it, and save it. Make sure that you save the file as a .txt and don’t duplicate the original. Note that some special characters may not be supported and can cause issues with the graphical interface. Reloading the app may be required for changes to take effect. 
 
----
+Mac:
 
+Right click on the ARIana app and click “Show Package Contents.” Navigate to *preop\_checklist.txt* and open the file in your text editor of choice, make changes to it, and save it. Make sure that you save the file as a .txt and don’t duplicate the original. Note that some special characters may not be supported and can cause issues with the graphical interface. Reloading the app may be required for changes to take effect. 
 
+### Adding you own cases:
 
-## Case Metadata JSON Schema
+Windows: 
 
-Each case in ARIana includes a single JSON file named `<CaseID>_metadata.json`. This file defines the parameters for each simulation case.
+Go into the folder holding ARIana.exe, find the folder named “Placeholder.” Don’t include spaces in the name of your folder. Copy this folder and rename it to the name of your patient/case. This is an extremely important step as the app will ignore folders named “Placeholder.” Enter this folder and rename the placeholder\_metadata.json to \<patient name\>\_metadata.json(the brackets should not be included; they are only there to emphasize the part of the name that should be replaced with the name of the case). Make sure that the name of the .json file and the name of the folder containing it match. Go into the *Images* folder and replace the images in each of the three folders (*Preoperation, Simulation,* and *Postoperation).* Make sure that you use the same naming convention as the placeholder images: \<Foldername\>\_\<imagenumber\>.png. The image number dictates the order that images will be shown and, in the simulation folder, the order stage that an image will be associated with. If you have a perforation image, add it to the Images folder as the final image. You can also use any of the images from the included cases to create your new cases with new probabilities or features. Please make sure that all images are formatted as .png. 
 
-```json
-{
-  "parameters": {
-    "name": "Infant w/ ileocolic intussusception",
-    "teaser": "Intermittent pain; currant jelly stool",
-    "clinical_descrip": "Vitals ... brief history for pre-op dialog.",
+Now that you have renamed the folder, .json, and added your own images, it’s time to edit the .json file. Open the .json file in any text editor. Make sure that the “*num stages”* value is set to the number of images in the Simulation folder, otherwise, some of the images may not display. The following is a list of values in the .json file and what they control. 
 
-    "num_stages": 5,
-    "coeff": [100, 100, 100, 100, 100],
+| Value  | Control |
+| :---- | :---- |
+| *name* | The name displayed in the case selection screen |
+| *teaser* | The short case description displayed in the case selection screen. |
+| *clinical\_descrip* | The longer description displayed when the “Take Vitals and History” is pressed in the preoperation screen |
+| *perf\_data* | This is the probability at each pressure listed that the patient will perforate. Pairs are listed as *\[pressure, probability\]* and are linearly interpolated for values in between the listed pressure/probability pairs listed |
+| *ret\_data* | This is the probability for retrogression (moving from the current stage to a previous stage). This uses the same linear interpolation logic as perf\_data |
+| *coeff* | This coefficient value effectively is the maximum probability of success when the pressure is at the maximum (180 mmHg). This value scales the success probabilities for all other pressures. |
+| *num\_stages* | The number of stages in the simulation. This should be set to the number of images in the *Simulation* folder |
+| *donstart* | This value is *0* by default. If the patient has a contraindication and surgery is not advised, set it to *1\.* Please note that this will cause the app to skip the simulation step entirely and display a warning if the user tries to start air enema reduction.  |
 
-    "perf_data": [[0,0],[60,1],[90,3],[120,6],[150,10],[180,15]],
-    "ret_data":  [[0,0],[60,2],[90,5],[120,10],[150,20],[180,30]],
+### Hardware Setup:
 
-    "max_fluoro_time": 120,
-    "dontstart": 0
-  }
-}
-```
+While the software can be used with a virtual pressure slider and no external hardware, the full setup tends to be more immersive. The total materials required to build the setup are as follows:
 
-### Field Reference
+- Computer running the ARIana software  
+- USB mini B cable that can plug into your computer  
+- Extech HD750 Differential Manometer  
+- ⅛” inner diameter flexible tubing  
+- ¼” inner diameter flexible tubing  
+- Insufflator with luer-lock output  
+- Luer lock to ¼” inner diameter flexible tubing adapter (can use a 3 way stopcock with one of the branches turned off and a luer lock to ¼” tubing adapter   
+- Bulb with tubing barb attachments for insufflator (¼” inner diameter) and manometer (⅛” inner diameter)   
+  - Optionally put this inside a modified doll  
+- (optional) bleed valve with male ¼” inner diameter tubing on both ends to simulate slight leaks and inefficiencies  
+  - If you are using a bleed valve, make sure to connect the manometer onto or near the bulb instead of connecting it between the insufflator and bleed valve. 
 
-| Field Name | Type | Description |
-|---|---|---|
-| `name` | String | Shown in Case Selection & Pre-Op. |
-| `teaser` | String | Shown in Case Selection & Pre-Op. |
-| `clinical_descrip` | String | Vitals and brief history for pre-op dialog. |
-| `num_stages` | Integer | Number of reduction stages (default: 5). |
-| `coeff` | List[Integer] | Per-stage success multipliers (length = `num_stages`, default: 100s). |
-| `perf_data` | List[[mmHg, %]] | Pressure-to-perforation probability curve. |
-| `ret_data` | List[[mmHg, %]] | Pressure-to-retrogression probability curve. |
-| `max_fluoro_time` | Integer | Fluoroscopy exposure cap in seconds (default: 120). |
-| `dontstart` | Integer (0/1) | If 1, 'Start Intussusception' triggers a contraindication end. |
+### Usage:
 
-**Tuning Tips:**
+Open the ARIana app. Read and agree to the disclaimer. Select a patient and press “Select Patient.” You are now in the “preoperation screen.” The resident can go through the preprocedure checklist, get more information about the patient using the “Take Vitals and History” button, and zoom into the images by clicking and scrolling. The zoom feature can also be used to pop out images into a separate window for later reference, as they will not be cleared by the app. If there are multiple preprocedure images, the user can scroll through them with the arrow buttons at the bottom. 
 
-- Keep `perf_data` monotonically increasing with pressure.
-- Tune `ret_data` around mid-pressures to model “back-and-forth” movement.
+After reading about the case, if the user finds a contraindication they should press *Call for Surgery.* 
 
----
+Simulation:
 
+In the simulation screen there is an option to use a virtual slider. This allows the app to be used without any external hardware. To access this, simply click the “Virtual Pressure Slider” button. There is also information about *Stage, Simulation Time, Pressure, Fluoroscopic Image Time, and Outcome.* These can be hidden to change the experience for the resident. 
 
+To connect the manometer, make sure that the “Virtual Pressure Slider” button is left unchecked. Now, use a usb type A to mini usb type B cable (one is included with the Extech HD750) and plug it into the computer. It may take a few seconds to connect and slightly longer the first time. You will be able to see the connection status at the top left of the screen. The program will convert all pressure values into mmHg no matter what unit the manometer is in. However, for the most accurate results, it is best to put the manometer into mmHg units. 
 
-## Workflow
+The user can use the space bar to “take a fluoroscopic image.” This will increase the counter for fluoroscopic time.” When this counter reaches 3 minutes, the simulation will stop and a warning will be displayed saying that the patient experienced radiation poisoning. 
 
-ARIana guides users through a structured workflow, simulating the air-enema reduction procedure. The workflow is divided into several tabs:
+While the simulation is live, the program uses probabilistic logic to decide whether the patient should progress to the next stage (and show the next image) or retrogress to the previous stage. The formula for the probability of progression is as shown below, where stage\_coeff is the coefficient of the current stage listed in the .json.   
+**success\_prob \= ((pressure / 180\) \*\* 2\) \* stage\_coeff**
 
-### 1) Disclaimer
+The probabilities of retrogression and perforation are slightly more complicated. They are created by linearly interpolating between the *ret\_data* and the *perf\_data* respectively–these are both defined in the .json file–to find the correct probability for the current pressure and stage. 
 
-Users must acknowledge the training-only use of the simulator before proceeding.
+These are the possible outcomes of the case:
 
-### 2) Case Selection
+| Outcome | Cause |
+| :---- | :---- |
+| Success | The intussusception was successfully reduced |
+| Stuck | The intussusception was not successfully reduced |
+| Perforation | The simulation ended and the patient perforated |
+| Patient Sent To Surgery | The patient was sent to surgery either before the simulation or after the simulation ended |
+| Contraindication Was Not Recognized | The patient had a contraindication that was not recognized in the preoperation. The user pressed “Start Air Enema Reduction” |
+| Radiation Limit Exceeded\! | The fluoro time counter reached 5 minutes (the patient was under fluoroscopic imaging for too long and received radiation portioning). Every time the fluoro button is pressed(unless the button was pressed within the last 2 seconds), 2 seconds is added to the fluoro time counter. |
+| Excessive Insufflation Occurred | The simulation lasted for longer than 5 minutes |
+| Patient Perforated and Vitals Crashed | The patient perforated and the user did not end the simulation within 3 minutes of perforation |
+| Perforation Occurred and Was Recognized | The patient perforated and the user ended the simulation within 3 minutes of perforation |
 
-The 'Refresh' button scans the `Patients/` folder for available cases. Select a case to view its teaser and clinical description, then click 'Select Case' to load it.
+### Troubleshooting:
 
-### 3) Pre-Operation
+If you would like more information, you can read the original documentation for the closed source version of ARIana. While this app was slightly different and based on MATLAB, a lot of the core logic and information is very similar. Note that the support email given is no longer monitored. Instead, please post in the *Discussion* section of this Github. 
 
-This tab prepares for the simulation. Key actions and information include:
+### Why Is It Not Starting\!? – Troubleshooting:
 
-- **Start Intussusception:** Proceeds to the 'Simulation' tab. If `dontstart=1` in the case metadata, this triggers a contraindication and ends the case with an explanation.
-- **Call for Surgery:** Immediately ends the case, simulating a decision to send the patient to surgery.
-- **Check Vitals and Medical History:** Displays the `clinical_descrip` from the case metadata in a dialog.
+First of all, make sure that all tubes and wires are plugged in appropriately.
 
-**Pre-Op Checklist (verbatim from app):**
+Potential problems:
 
-- Pediatric surgery has been consulted and is aware of the patient.
-- Abdominal radiographs (AP and cross-table lateral or decubitus) show no free air.
-- No peritoneal signs are present.
-- Patient is hemodynamically stable.
-- IV access has been secured.
-- Parents/guardians have consented to the procedure (preferable).
-- Large-bore angiocath available at bedside.
-- Provider in the room primarily responsible for the patient (nurse or doctor).
-- Patient’s vital signs are being monitored.
-- What catheter will be used?
-- Will you sedate the patient?
+1. Pressing the space bar does not change the image.  
+   1. Make sure that the mouse cursor on the screen is over the fluoroscopic image and click once on the image. This error may occur if a display setting is checked or unchecked during the procedure or if the mouse is clicked outside of the simulator window, deselecting the window.  
+2. The Program displays a sensor error message upon starting the simulator from the pre-procedure window.  
+   1. Make sure the pressure sensor is powered on and plugged into the computer.
 
-### 4) Simulation
+   3\. 	A case from the startup screen will not load (an error message appears)
 
-This is the core simulation phase where pressure is applied and monitored.
+    
 
-**Pressure Input:**
+      a. 	This issue will only occur if the selected case file is incomplete or corrupted. Reinstalling the case file from the source will fix this problem. You can find them in ARIana/Source Code/Patients/\<patientname\>/Images
 
-- **Hardware manometer (default):** Auto-detects CP2102 USB–UART devices. Incoming packets are converted to mmHg for live pressure readings.
-- **Virtual Pressure:** Enable this mode to control pressure using a slider and numeric input field when hardware is not connected.
+   4\. 	The pressure on the insufflator is not the same as the pressure that the manometer is measuring. What gives?
 
-**Controls:**
+   a. 	In a closed system, the pressures would be identical. However, since the instructor creates a small air leak in the system with the control valve, there is a small difference in pressure. The program accounts for this with a “fudge factor.”
 
-- **Take Fluoroscopy Image (space bar):** Captures the next simulation frame and adds to the total fluoroscopy time. A red indicator is active while this is in use.
-- **Call for Surgery:** Immediately ends the simulation.
-- **End Simulation:** Ends the simulation and moves to the 'Results' tab.
+ **If you encounter an issue that is not described above and prevents the simulator from working properly, please contact us in the [GitHub Discussion forums](https://github.com/milesfleisher/ARIana/discussions).**
 
-**Live Status:**
-
-The simulation displays real-time status indicators:
-
-- **Stage:** Current reduction stage (e.g., 1…`num_stages`). Completion is marked as 'Complete'.
-- **Sim Time:** Wall-clock time in seconds. Safety rules include a 3-minute warning at 180 seconds and a hard stop at 300 seconds.
-- **Pressure:** Current pressure in mmHg (from hardware or virtual input).
-- **Fluoro Time:** Cumulative fluoroscopy time in seconds. Exceeding `max_fluoro_time` ends the case.
-- **Outcome:** The outcome of the last tick: `Success`, `Retrogress`, `Stuck`, `Perforated`, or `Complete`.
-- **Visibility toggles:** Instructors can hide or show any status row (hidden rows display “Not Shown”).
-
-### 5) Results
-
-After the simulation, the 'Results' tab provides a summary and analysis:
-
-- **Summary:** Displays the final Outcome, Total Simulation Time, and Total Fluoroscopy Time.
-- **Plot:** A pressure (mmHg) over time (s) plot, with stage transitions overlaid.
-- **Post-procedure images:** A scrollable viewer for post-procedure images. Click an image to open a zoomable window.
-
----
-
-
-
-## Hardware Setup (Optional Manometer)
-
-For an enhanced simulation experience, ARIana supports an optional hardware manometer. To use it:
-
-1.  Connect the manometer via USB.
-2.  The app will auto-detect the CP2102 USB-UART device.
-    -   **macOS:** Prefers `/dev/cu.usbserial-0001`.
-    -   **Windows:** Uses the first detected CP2102 COM port.
-3.  The status will show `Connected` after a successful handshake. If connection fails, use the Virtual Pressure mode.
-
-### CP2102 Protocol (Used by the App)
-
--   **VID/PID:** `0x10C4 / 0xEA60` (Product: “CP2102 USB to UART Bridge Controller”)
--   **Handshake:** The app writes `55 AA 01` and expects any packet with header `AA 56`.
--   **Packet Format (10 bytes):**
-    `AA 56 | u | s | r r | d d d d d`
-    -   `u`: unit code
-    -   `s`: status byte (bit2 is sign)
-    -   `r r`: reserved
-    -   `d d d d d`: ASCII digits for value (no decimal point)
-
-### Unit → mmHg Conversion
-
-| Unit Code | Unit | Conversion Factor to mmHg |
-|---|---|---|
-| `0x00` | bar | `× 750.062` |
-| `0x01` | oz/in² | `× 3.23218` |
-| `0x02` | psi | `× 51.7149` |
-| `0x03` | inHg | `× 25.4` |
-| `0x04` | mbar | `× 0.750062` |
-| `0x05` | mmHg | `× 1.0` |
-| `0x06` | kPa | `× 7.50062` |
-| `0x07` | kg/cm² | `× 735.559` |
-| `0x08` | inH₂O | `× 1.86832` |
-| `0x09` | ftH₂O | `× 22.4199` |
-| `0x0A` | cmH₂O | `× 0.735559` |
-
-### Sampling
-
--   The serial reader polls approximately every 10 ms.
--   The UI samples pressure approximately every 50 ms.
-
-**Troubleshooting:** If the device doesn’t enumerate, install the CP210x driver (Windows) or run `modprobe cp210x` (Linux).
-
----
-
-
-
-## Keyboard & Interaction
-
--   **Spacebar:** Triggers `Take Fluoroscopy Image` only when the Simulation tab is active. It is suppressed in other tabs.
--   **Clicking Images:** Click any case image to open a separate, zoomable viewer for detailed examination.
-
----
-
-
-
-## Safety Timers & Outcomes
-
-ARIana incorporates several safety timers and outcome triggers to simulate realistic scenarios:
-
--   **3-minute warning:** At 180 seconds of total simulation time, a red banner appears, advising the user to release/rest pressure.
--   **Perforation → vitals crash:** If a `Perforated` outcome occurs and 180 seconds elapse without resolution, the outcome becomes `Perforated Vitals Crashed`, and the case ends.
--   **5-minute hard stop:** At 300 seconds of total simulation time, the case automatically ends with a `Time Limit 5 Min` outcome.
--   **Fluoroscopy limit:** The cumulative fluoroscopy time is capped by `max_fluoro_time` (default 120 seconds). Exceeding this limit ends the case with a radiation over-exposure outcome.
-
----
-
-
-
-## Case Engine Details
-
-### Images
-
--   `simulation_N.png` corresponds to stage `N`.
--   If the current stage is greater than `num_stages`, the last available image is reused.
-
-### Outcome Selection (per tick)
-
-Outcomes are determined by a probabilistic model:
-
-1.  Interpolate perforation and retrogression probabilities from `perf_data` and `ret_data`.
-2.  Compute a pressure-scaled success term (heuristic) using the formula:
-
-    ```
-    success ∝ (pressure / 180)^2 × coeff[current_stage]
-    ```
-
-3.  A random number between 0 and 100 is drawn, and the first satisfied outcome is selected in this order:
-    -   `Perforated`
-    -   `Retrogress` (if `stage > 1`)
-    -   `Success` (advances stage)
-    -   `Stuck`
-
-### Tuning Tips
-
--   Increase `coeff` for a specific stage to make it easier to clear.
--   Reduce `coeff` to make a stage more stubborn.
--   Raise mid-range values in `ret_data` to model “back-and-forth” movement.
--   Ensure `perf_data` is strictly increasing with pressure.
-
----
-
-
-
-## Results & Plotting Details
-
--   **Plot:** The results display a plot of Pressure (mmHg) versus Time (s), with stage transitions overlaid for visual analysis.
--   Duplicate time samples are dropped to ensure data integrity.
--   Pressure values can be interpolated and Gaussian-smoothed for improved readability of the plot.
-
----
-
-
-
-## Building From Source (macOS • Windows • Linux)
-
-If you only need to run the app, refer to the [Quick Start](#quick-start-run-from-source) section. The following steps are for users who wish to produce redistributable binaries of ARIana.
-
-### macOS — Nuitka `.app` + DMG
-
-#### Prerequisites
-
--   **Xcode Command Line Tools:** Install by running `xcode-select --install` in your terminal.
--   **Python:** Version 3.9–3.12 (installers from python.org usually bundle a compatible Tk).
--   **Python Packages:** Install `nuitka`, `ordered-set`, and `zstandard`:
-    ```bash
-    pip install nuitka ordered-set zstandard
-    ```
-
-#### Build Command
-
-Use the following command to build the `.app` bundle and a DMG installer:
-
-```bash
-python3 -m nuitka \
-  --standalone \
-  --macos-create-app-bundle \
-  --macos-app-name="ARIana" \
-  --include-data-dir=Patients=Patients \
-  --include-data-file=ARIana_logo.png=ARIana_logo.png \
-  --include-module=tkinter \
-  --include-module=PIL \
-  --include-module=matplotlib \
-  --include-module=numpy \
-  --include-module=scipy \
-  --include-module=serial \
-  --enable-plugin=tk-inter \
-  --output-dir=build_macos \
-  --macos-app-icon=ARIana_logo.png \
-  --macos-sign-identity="-" \
-  ARIana.py && \
-hdiutil create -volname "ARIana" -srcfolder build_macos/ARIana.app -ov -format UDZO ARIana.dmg
-```
-
-#### Notes
-
--   Replace `ARIana.py` with your actual entry file if it's different.
--   `--macos-sign-identity="-"` performs ad-hoc signing, which is suitable for local testing. For wider distribution, use a Developer ID and notarization.
-
-### Windows — Nuitka (or PyInstaller)
-
-#### Prerequisites
-
--   **Python:** Version 3.10–3.12 (64-bit), added to your system's PATH.
--   **Visual Studio Build Tools:** C++ toolset is required for Nuitka.
--   **Python Packages:** Install `nuitka` (recommended) or `pyinstaller` (for the alternative):
-    ```bash
-    pip install nuitka
-    # or
-    pip install pyinstaller
-    ```
-
-#### Nuitka (Recommended)
-
-Use the following PowerShell command to build with Nuitka:
-
-```powershell
-python -m nuitka `
-  --standalone `
-  --assume-yes-for-downloads `
-  --windows-console-mode=disable `
-  --windows-product-name="ARIana" `
-  --windows-file-description="ARIana Application" `
-  --include-data-dir=Patients=Patients `
-  --include-data-file=ARIana_logo.png=ARIana_logo.png `
-  --include-module=tkinter `
-  --include-module=PIL `
-  --include-module=matplotlib `
-  --include-module=numpy `
-  --include-module=scipy `
-  --include-module=serial `
-  --enable-plugin=tk-inter `
-  --output-dir=build_windows `
-  ARIana.py
-```
-
-**Result:** The executable will be located at `build_windows\ARIana.dist\ARIana.exe`. Zip the entire `*.dist` folder to share the application.
-
-**Optional Icon:** Use `--windows-icon-from-ico=ARIana.ico` to include a custom icon (convert your PNG to ICO format first).
-
-#### PyInstaller (Alternative)
-
-If you prefer PyInstaller, use these commands:
-
-```powershell
-pip install pyinstaller
-pyinstaller --noconfirm --clean --windowed `
-  --name "ARIana" `
-  --add-data "Patients;Patients" `
-  --add-data "ARIana_logo.png;." `
-  --hidden-import tkinter `
-  --hidden-import PIL `
-  --hidden-import matplotlib `
-  --hidden-import numpy `
-  --hidden-import scipy `
-  --hidden-import serial `
-  ARIana.py
-```
-
-**Result:** The executable will be at `dist\ARIana\ARIana.exe`.
-
-**Note on `--add-data`:** On Windows, `--add-data` uses a semicolon (e.g., `src;dest`). On macOS/Linux, it uses a colon (e.g., `src:dest`).
-
-**Driver Note:** For the hardware manometer, ensure the CP210x USB-UART driver is installed.
-
-### Linux — Run or Build
-
-#### Run From Source (Recommended)
-
-For a quick setup on Debian/Ubuntu-based systems:
-
-```bash
-# Debian/Ubuntu example:
-sudo apt-get update && sudo apt-get install -y python3-tk python3-venv build-essential
-python3 -m venv .venv && source .venv/bin/activate
-pip install -U pip numpy scipy matplotlib Pillow pyserial
-python ARIana.py
-```
-
-#### Optional: Nuitka Standalone Build
-
-To create a standalone executable for Linux:
-
-```bash
-pip install nuitka ordered-set zstandard
-python -m nuitka \
-  --standalone \
-  --include-data-dir=Patients=Patients \
-  --include-data-file=ARIana_logo.png=ARIana_logo.png \
-  --include-module=tkinter \
-  --include-module=PIL \
-  --include-module=matplotlib \
-  --include-module=numpy \
-  --include-module=scipy \
-  --include-module=serial \
-  --enable-plugin=tk-inter \
-  --output-dir=build_linux \
-  ARIana.py
-```
-
-#### Serial Access (Linux)
-
-To grant your user access to serial ports (necessary for the hardware manometer):
-
-```bash
-sudo usermod -aG dialout "$USER"   # Log out/in after this command for changes to take effect.
-```
-
----
-
-
-
-## Common Gotchas
-
-Here are some common issues you might encounter and their solutions:
-
--   **Missing cases/images in build:** Ensure that `Patients/` and `ARIana_logo.png` are correctly included in your build process using the appropriate `--include-data-*` (Nuitka) or `--add-data` (PyInstaller) flags for your operating system.
--   **Matplotlib backend issues:** ARIana uses `TkAgg`. Verify that Tk is available on your system by running `python -m tkinter`. This should open a test window.
--   **High-DPI scaling (Windows):** If the UI appears blurry, enable `System (Enhanced)` DPI scaling in the app compatibility settings, or adjust your Windows display scaling.
--   **Anti-virus false positives (Windows):** When distributing, prefer zipping the entire `*.dist` folder (from `--standalone` builds) and consider signing your binaries to avoid anti-virus flags.
-
----
-
-
-
-## Troubleshooting
-
-If you encounter problems, consult the following troubleshooting tips:
-
--   **No cases listed:** Verify that `Patients/<CaseID>/<CaseID>_metadata.json` files exist and that images use the required naming conventions within their respective folders.
--   **Spacebar doesn’t advance images:** Ensure that the `Simulation` tab is active, the application window has focus, and you have not exceeded the `max_fluoro_time` limit.
--   **Pressure stuck at 0 / “Disconnected”:**
-    -   Check the USB cable connection to the manometer.
-    -   Close any other serial applications (e.g., Arduino IDE, terminal emulators) that might be using the COM port.
-    -   Confirm that the CP2102 driver is correctly installed.
-    -   As a workaround, use the `Virtual Pressure` mode to continue the simulation.
--   **Immediate end after Preprocedure:** This usually indicates that the case metadata has `dontstart: 1`, which triggers a contraindication scenario.
--   **Unexpected time endings:** The 3-minute warning is informational. The 5-minute limit is a hard stop by design, and exceeding the fluoroscopy limit also ends the case as intended.
-
----
-
-
-
-## Attribution & Provenance
-
--   **Original MATLAB manual:** `ARI manual 201409.pdf` (2014).
--   **Original authors:** S.K.Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexier, Lucy LLC
--   **This release:** A Python/Tk re-implementation building upon the 2014 MATLAB ARI/ARIana simulator and manual.
-
-The clinical workflow language (e.g., Pre-Op Checklist, safety timers, fluoroscopy guidance) and several UI conventions are adapted from the original manual. All original credit belongs to the original authors.
-
----
