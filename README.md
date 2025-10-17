@@ -32,7 +32,7 @@ Download [*ARIana-Mac-Installer.dmg*](https://github.com/milesfleisher/ARIana/ra
 
 The first time you run the app, you may experience a longer loading time than usual. This is because the app is generating multiple setting files. The app may also give you some alerts that say that the “checklist file could not be found.” As long as the alert doesn’t say that the “file couldn’t be created,” this is not an issue and can safely be ignored. On future startups, the app should load much faster. 
 
-When launching the app for the first time, you may receive a warning that “the app cannot be scanned for malware.” This is not an issue and it can be safely ignored. This warning is because the app was not signed with the Apple Developer License. The warning can be bypassed by first going to *System Preferences\>Security*, scrolling down to the bottom. Next, find the warning that says “ARIana was blocked to protect your Mac.” Click *Open Anyway*, and give your admin password. After you’ve done this once, the app should run as expected in the future. 
+When launching the app for the first time, you may receive a warning that “the app cannot be scanned for malware.” This is not an issue and it can be safely ignored. This warning is because the app was not signed with the Apple Developer License. All the code was written by Miles Fleisher and can be viewed in the Source Code folder and all dependencies have been thoroughly vetted. The warning can be bypassed by first going to *System Preferences\>Security*, scrolling down to the bottom. Next, find the warning that says “ARIana was blocked to protect your Mac.” Click *Open Anyway*, and give your admin password. After you’ve done this once, the app should run as expected in the future. 
 
 ### Folder Layout:
 
