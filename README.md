@@ -11,8 +11,6 @@ This device is designed to help a trained pediatric radiologist teach a trainee 
 ARIana was originally a closed source app coded in MATLAB. The original app was a product of Lucy LLC created by S.K. Soosman, G.E. Roper, A.S. Wexler, J.C. Li, R. Stein-Wexler. The original MATLAB version was discontinued, but the demand for a computer-based intussusception simulator remained. This is a new version of ARIana that has used the original MATLAB file as inspiration. Miles Fleisher created this new, open source, Python/Tkinter version with help from the original creators. In addition to porting from MATLAB to Python/Tkinter, some additional functionality has been added, as well as more cross-platform support.
 
 ### Downloading:
-First, download the Original Ari-Ana documentation from the V1 app. This provides medical background on the cases. [*Original ARIana Documentation*]
-()
 Operating System Versions Supported:  
 ARIana currently supports Windows 7 or later and macOS 10.9 or later. There is also a Linux version available but it is currently in testing. If you are using an unsupported operating system, you are also welcome to compile for yourself using the Python files in the Source Code folder. Niutika is the recommended compiler. There are .yml files that include Niutika commands for Windows, Mac, and Linux, which can be used to compile your own version. 
 
