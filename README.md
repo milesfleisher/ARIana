@@ -1,5 +1,5 @@
 ## ARIana (Python/Tk)
-[*https://tinyurl.com/ARIana-download*]
+(https://tinyurl.com/ARIana-download)
 
 
 ## A cross-platform simulator for teaching air-enema reduction of pediatric intussusception.
