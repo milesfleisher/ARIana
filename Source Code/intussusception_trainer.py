@@ -120,7 +120,6 @@ def _load_preop_checklist_text():
         return DEFAULT_PREOP_CHECKLIST
 
 def parse_manometer_packet(packet):
-    """Decode a 10-byte pressure packet and convert to mmHg without scaling factors."""
     if len(packet) != 10 or packet[0] != 0xAA or packet[1] != 0x56:
         return None
     
@@ -275,7 +274,6 @@ class ManometerThread(threading.Thread):
         if self.ser and self.ser.is_open:
             self.ser.close()
 class CaseLoader:
-    """Handles loading case data from JSON files and managing images"""
     
     def __init__(self, base_path="Patients"):
         self.base_path = base_path
@@ -283,7 +281,6 @@ class CaseLoader:
 
     
     def load_case_list(self):
-        """Load the list of available cases from the directory structure"""
         cases = []
         if not os.path.exists(self.base_path):
             os.makedirs(self.base_path, exist_ok=True)
@@ -318,7 +315,6 @@ class CaseLoader:
         return cases
     
     def load_case(self, case_id):
-        """Load a specific case by ID"""
         metadata_file = None
         case_folder_path = os.path.join(self.base_path, case_id)
         if os.path.exists(case_folder_path):
@@ -354,7 +350,6 @@ class CaseLoader:
         return case_data
 
 class IntussusceptionSimulator:
-    """Core simulation engine"""
     
     def __init__(self):
         self.case_data = None
@@ -444,7 +439,6 @@ class IntussusceptionSimulator:
         self.is_running = False
   
     def _interpolate_probability(self, data, pressure):
-        """Helper function to interpolate probability from data table."""
         if not data or len(data) < 2: return 0
         
         x_coords, y_coords = zip(*data)
@@ -502,7 +496,7 @@ class IntussusceptionSimulator:
                 "sim_time": self.sim_time, "fluoro_time": self.fluoro_time
             }
         elif not self.is_perforated:
-            if random_value < (perf_prob + ret_prob):
+            if self.current_stage < num_stages and random_value < (perf_prob + ret_prob):
                 if self.current_stage > 1:
                     outcome = "Retrogress"
                     self.current_stage -= 1
@@ -562,7 +556,6 @@ class IntussusceptionSimulator:
         }
 
 class PreOpImageScroller(ttk.Frame):
-    """Scrollable image viewer for pre-operation images with click-to-zoom."""
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.image_paths = []
@@ -622,7 +615,6 @@ class PreOpImageScroller(ttk.Frame):
 
     #Helpers 
     def update_navigation_visibility(self):
-        """Show/hide navigation controls based on number of images."""
         if len(self.image_paths) <= 1:
             self.nav_frame.grid_remove()
         else:
@@ -636,7 +628,6 @@ class PreOpImageScroller(ttk.Frame):
             self.counter_label.config(text="0/0")
 
     def open_zoom_viewer(self, event=None):
-        """Open the current image in the ZoomableImageViewer if available."""
         if not self.image_paths:
             return
         idx = max(0, min(self.current_index, len(self.image_paths) - 1))
@@ -678,7 +669,10 @@ class PreOpImageScroller(ttk.Frame):
             self.image_label.config(image="", text="No Image Available", cursor="")
 
 class ImageScroller(ttk.Frame):
-    """A frame with a label to show an image and buttons to scroll through a list of images."""
+   
+    MAX_DISPLAY_W = 520
+    MAX_DISPLAY_H = 720
+
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.image_paths = []
@@ -731,7 +725,6 @@ class ImageScroller(ttk.Frame):
                 ZoomableImageViewer(self, img_path)
 
     def update_navigation_visibility(self):
-        """Show/hide navigation controls based on number of images"""
         if len(self.image_paths) <= 1:
             self.nav_frame.grid_remove()
         else:
@@ -739,20 +732,17 @@ class ImageScroller(ttk.Frame):
         self.update_counter()
 
     def update_counter(self):
-        """Update the counter label"""
         if self.image_paths:
             self.counter_label.config(text=f"{self.current_index + 1}/{len(self.image_paths)}")
         else:
             self.counter_label.config(text="0/0")
 
     def prev_image(self):
-        """Navigate to previous image"""
         if self.image_paths and self.current_index > 0:
             self.current_index -= 1
             self.display_image()
 
     def next_image(self):
-        """Navigate to next image"""
         if self.image_paths and self.current_index < len(self.image_paths) - 1:
             self.current_index += 1
             self.display_image()
@@ -768,15 +758,20 @@ class ImageScroller(ttk.Frame):
         if os.path.exists(path):
             try:
                 img = Image.open(path)
-                #Use the label for sizing, as its container (the grid cell) is now properly managed.
-                container = self.image_label
+                # Size to the scroller's allocated space, but clamp to hard caps so a large image
+                # can never force the Results column wider than intended.
+                container = self
                 container.update_idletasks()
-                
-                panel_w = container.winfo_width()
-                panel_h = container.winfo_height()
 
+                panel_w = max(container.winfo_width(), 1)
+                panel_h = max(container.winfo_height(), 1)
+
+                # Provide a sane default if not yet laid out
                 if panel_w < 50 or panel_h < 50:
-                    panel_w, panel_h = 800, 600 
+                    panel_w, panel_h = 800, 600
+
+                panel_w = min(panel_w, self.MAX_DISPLAY_W)
+                panel_h = min(panel_h, self.MAX_DISPLAY_H)
 
                 img.thumbnail((panel_w, panel_h), Image.Resampling.LANCZOS)
 
@@ -879,7 +874,6 @@ class ZoomableImageViewer(tk.Toplevel):
             self.canvas.yview_moveto(0.0)
 
 class ARIanaApp:
-    """Main application class using Tkinter GUI"""   
 
     def __init__(self):
         self.root = tk.Tk()
@@ -981,7 +975,6 @@ class ARIanaApp:
         self._on_tab_changed()
     
     def _on_tab_changed(self, event=None):
-        """Only allow spacebar to trigger fluoroscopy on the Simulation tab."""
         #Clear any previous global binding
         try:
             self.root.unbind_all("<space>")
@@ -1068,7 +1061,6 @@ class ARIanaApp:
         self.pre_op_image_scroller.pack(fill="both", expand=True)
 
     def on_closing(self):
-        """Handle window close event and ensure proper cleanup"""
         self.manometer_thread.stop()
         #Give the thread a moment to clean up
         if self.manometer_thread.is_alive():
@@ -1180,7 +1172,6 @@ class ARIanaApp:
 
 
     def _resize_disclaimer(self, event=None):
-        """Responsive sizing for disclaimer without introducing vertical gaps."""
         #Current size
         w = (event.width if event else self.disclaimer_frame.winfo_width()) or 900
         h = (event.height if event else self.disclaimer_frame.winfo_height()) or 700
@@ -1522,7 +1513,7 @@ class ARIanaApp:
         #Right content: Image scroller
         image_frame = ttk.Frame(content_frame)
         image_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
-        ttk.Label(image_frame, text="Post-procedure Images", font=("Arial", 12, "bold")).pack()
+        ttk.Label(image_frame, text="Post-procedure Images (Final Stage Reached Shown First)", font=("Arial", 12, "bold")).pack()
         self.results_image_scroller = ImageScroller(image_frame)
         self.results_image_scroller.pack(fill="both", expand=True)
 
@@ -1535,7 +1526,6 @@ class ARIanaApp:
         ttk.Button(bottom_button_frame, text="Exit", command=self.root.quit).pack(side=tk.RIGHT, padx=20, ipadx=10, ipady=5)
 
     def toggle_pressure_input(self):
-        """Shows/hides the virtual slider or the serial status label."""
         if self.virtual_slider_var.get():
             self.manometer_status_label.pack_forget()
             self.pressure_frame.pack(fill="x", expand=True)
@@ -1564,7 +1554,6 @@ class ARIanaApp:
         self.end_simulation(outcome_override="Patient Sent to Surgery")
 
     def toggle_visibility(self, name):
-        """Hides or shows a status label row by changing its text and color."""
         value_label = self.status_labels[name]
         if self.visibility_vars[name].get():
             #When checked, restore the last known value and default color
@@ -1685,7 +1674,6 @@ class ARIanaApp:
             self.display_result_image()
     
     def render_figure_to_photoimage(self, fig):
-        """Render a matplotlib figure to a Tkinter-compatible PhotoImage."""
         canvas = FigureCanvasAgg(fig)
         canvas.draw()
         buf = canvas.buffer_rgba()  #modern API
@@ -1797,8 +1785,29 @@ class ARIanaApp:
         #Ensure root has focus to capture keyboard events
         self.root.focus_set()
 
+    def _build_results_image_list(self, outcome_text: str):
+        #Find the last stage reached (prefer recorded history if available)
+        try:
+            last_stage = int(self.simulator.stage_history[-1]) if self.simulator.stage_history else int(self.simulator.current_stage)
+        except Exception:
+            last_stage = self.simulator.current_stage
+
+        #Last reached simulation-stage image (may be None if the case has no simulation images)
+        last_stage_image = self.simulator.get_image_for_stage(last_stage, image_type="simulation")
+
+        images = []
+        if last_stage_image:
+            images.append(last_stage_image)
+
+        #Only append postprocedure images for a completed case
+        if outcome_text == "Complete":
+            post_images = self.current_case.get("images", {}).get("postprocedure", [])
+            if post_images:
+                images.extend(post_images)
+
+        return images
+
     def end_simulation(self, outcome_override=None):
-        """Stop the simulator and render the Results tab based on how the run ended."""
         #Stop the engine
         self.simulator.stop_simulation()
 
@@ -1810,13 +1819,15 @@ class ARIanaApp:
         if outcome_override is None and self.simulator.is_perforated and self.simulator.perforation_timer_active:
             outcome_override = "Perforation Occurred And Was Recognized"
 
+        #Consistent outcome text for summary + Results image selection
+        outcome_text = outcome_override or self.simulator.last_outcome
+
         if not performance_data:
             #Nothing to show; still navigate to Results with a minimal summary
-            self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_override or self.simulator.last_outcome}")
+            self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_text}")
             self.plot_image_label.config(image="", text="No performance data for this case.")
             self.plot_image_label.image = None
-            post_images = self.current_case.get("images", {}).get("postprocedure", [])
-            self.results_image_scroller.set_images(post_images)
+            self.results_image_scroller.set_images(self._build_results_image_list(outcome_text))
             self.show_results()
             self.called_surgery_from_preop = False
             return
@@ -1841,11 +1852,12 @@ class ARIanaApp:
 
             #Summary + post images
             summary_text = "Simulation ended.\n"
-            summary_text += f"Outcome: {outcome_override or 'Contraindication was not recognized'}"
+            #Preserve previous special-case outcome wording for contraindication cases
+            contra_outcome_text = outcome_text if outcome_override is not None else "Contraindication was not recognized"
+            summary_text += f"Outcome: {contra_outcome_text}"
             self.results_summary.config(text=summary_text)
 
-            post_images = self.current_case.get("images", {}).get("postprocedure", [])
-            self.results_image_scroller.set_images(post_images)
+            self.results_image_scroller.set_images(self._build_results_image_list(contra_outcome_text))
 
             self.show_results()
             #Reset the flag for future runs
@@ -1857,12 +1869,11 @@ class ARIanaApp:
 
         #Summary
         summary_text = "Simulation ended.\n"
-        summary_text += f"Outcome: {outcome_override or self.simulator.last_outcome}"
+        summary_text += f"Outcome: {outcome_text}"
         self.results_summary.config(text=summary_text)
 
-        #Post-procedure images
-        post_images = self.current_case.get("images", {}).get("postprocedure", [])
-        self.results_image_scroller.set_images(post_images)
+        #Results images (last reached stage first; postprocedure appended only if Complete)
+        self.results_image_scroller.set_images(self._build_results_image_list(outcome_text))
 
         #Plot performance (fallback text if plotting can’t produce an image)
         self.plot_image_label.config(image="", text="")   #clear any prior text
