@@ -527,8 +527,8 @@ class IntussusceptionSimulator:
             return {"result": "radiation_overdose"}
 
         #Increment fluoro time every second
-        if self.sim_time-self.last_fluoro_time >= 2:
-            self.fluoro_time += 2
+        if self.sim_time-self.last_fluoro_time >= 1:
+            self.fluoro_time += 1
             self.last_fluoro_time = self.sim_time
 
         image_path = self.get_image_for_stage(self.current_stage)
@@ -1813,6 +1813,14 @@ class ARIanaApp:
 
         #collect data once
         performance_data = self.simulator.get_performance_data()
+                #save flouro data
+        
+        fluoro_s = 0
+        if performance_data and isinstance(performance_data, dict):
+            fluoro_s = performance_data.get("fluoro_time", 0) or 0
+        else:
+            fluoro_s = getattr(self.simulator, "fluoro_time", 0) or 0
+
 
         #If user ends while perforation is active but auto-end hasn't fired yet,
         #force a clear outcome for the Results header.
@@ -1824,7 +1832,7 @@ class ARIanaApp:
 
         if not performance_data:
             #Nothing to show; still navigate to Results with a minimal summary
-            self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_text}")
+            self.results_summary.config(text=f"Simulation ended.\nOutcome: {outcome_text}\nFluoro time: {int(round(fluoro_s))} s")                     
             self.plot_image_label.config(image="", text="No performance data for this case.")
             self.plot_image_label.image = None
             self.results_image_scroller.set_images(self._build_results_image_list(outcome_text))
@@ -1869,8 +1877,9 @@ class ARIanaApp:
 
         #Summary
         summary_text = "Simulation ended.\n"
-        summary_text += f"Outcome: {outcome_text}"
+        summary_text += f"Outcome: {outcome_text}\nFluoro time: {int(round(fluoro_s))} s"
         self.results_summary.config(text=summary_text)
+
 
         #Results images (last reached stage first; postprocedure appended only if Complete)
         self.results_image_scroller.set_images(self._build_results_image_list(outcome_text))
